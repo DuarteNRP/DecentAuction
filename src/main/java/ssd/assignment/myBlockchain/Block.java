@@ -57,4 +57,20 @@ public class Block {
         System.out.println("Transaction Successfully added to Block");
         return true;
     }
+    //Total amount of all Transactions
+    public float getTransactionsAmount(){
+        float count=0;
+        for(Transaction t : transactions){
+            count+=t.amount;
+        }
+        return count;
+    }
+    //Total of fees of all Transactions, for now %0.1 of amount
+    public float getTransactionsFees(){
+        float count=0;
+        for(Transaction t : transactions){
+            count+=(t.amount*0.001);
+        }
+        return count;
+    }
 }

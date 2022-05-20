@@ -27,11 +27,11 @@ public class Utils {
         while(count > 1) {
             treeLayer = new ArrayList<String>();
             for(int i=0; i < previousTreeLayer.size(); i+=2) {
+                if(i==previousTreeLayer.size()-1){
+                    treeLayer.add(crypto.hash(previousTreeLayer.get(i)));
+                    break;
+                }
                 treeLayer.add(crypto.hash(previousTreeLayer.get(i) + previousTreeLayer.get(i+1)));
-            }
-            //if size is odd number
-            if(previousTreeLayer.size()%2==1){
-                treeLayer.add(crypto.hash(previousTreeLayer.get(previousTreeLayer.size()-1)));
             }
             count = treeLayer.size();
             previousTreeLayer = treeLayer;

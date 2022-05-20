@@ -13,7 +13,7 @@ public class Menu {
         System.out.println("8. Exit");
 
     }
-    void getInput(int n){
+    /*void getInput(int n){
         int selection = 0;
         while (selection != 20)
         {
@@ -57,5 +57,5 @@ public class Menu {
                     DoExit();
                     break;
             }
-    }
+    }*/
 }

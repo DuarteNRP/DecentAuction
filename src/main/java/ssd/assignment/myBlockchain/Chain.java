@@ -68,6 +68,10 @@ public class Chain {
         block3.addTransaction(walletB.sendFunds( walletA.publicKey, 20));
         System.out.println("\nWalletA's balance is: " + walletA.getBalance());
         System.out.println("WalletB's balance is: " + walletB.getBalance());
+        System.out.println("Block 0 transactionsAmount: " + genesis.getTransactionsAmount());
+        System.out.println("Block 1 transactions: " + block1.getTransactionsAmount());
+        System.out.println("Block 2 transactions: " + block2.getTransactionsAmount());
+        System.out.println("Block 3 transactions: " + block3.getTransactionsAmount());
 
         isValid();
 
