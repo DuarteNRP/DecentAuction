@@ -1,5 +1,5 @@
-package ssd.assignment.client;
-import ssd.assignment.myBlockchain.Chain;
+package client;
+import myBlockchain.Chain;
 
 public class Menu {
     public Menu(){

@@ -1,4 +1,4 @@
-package ssd.assignment.crypto;
+package crypto;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;

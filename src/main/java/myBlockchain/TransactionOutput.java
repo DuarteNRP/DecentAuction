@@ -1,8 +1,8 @@
-package ssd.assignment.myBlockchain;
+package myBlockchain;
 
 import java.security.PublicKey;
-import ssd.assignment.config.Utils;
-import ssd.assignment.crypto.Crypto;
+import config.Utils;
+import crypto.Crypto;
 
 public class TransactionOutput {
     private static final Utils utils = new Utils();

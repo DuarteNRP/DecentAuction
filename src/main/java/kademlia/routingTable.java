@@ -1,6 +1,6 @@
-package ssd.assignment.kademlia;
-import ssd.assignment.config.Utils;
-import ssd.assignment.config.Constraints;
+package kademlia;
+import config.Utils;
+import config.Constraints;
 
 public class routingTable {
     private transient bucket[] buckets;

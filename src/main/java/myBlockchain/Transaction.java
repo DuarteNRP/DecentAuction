@@ -1,7 +1,7 @@
-package ssd.assignment.myBlockchain;
+package myBlockchain;
 
-import ssd.assignment.config.Utils;
-import ssd.assignment.crypto.Crypto;
+import config.Utils;
+import crypto.Crypto;
 
 import java.security.PrivateKey;
 import java.security.PublicKey;

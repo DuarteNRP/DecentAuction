@@ -1,13 +1,13 @@
-package ssd.assignment.myBlockchain;
+package myBlockchain;
 
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import ssd.assignment.config.Constraints;
-import ssd.assignment.crypto.Crypto;
-import ssd.assignment.config.*;
-import ssd.assignment.myBlockchain.Block;
+import config.Constraints;
+import crypto.Crypto;
+import config.*;
+import myBlockchain.Block;
 
 public class Chain {
     public static final float minimumTransaction = 0.1f;

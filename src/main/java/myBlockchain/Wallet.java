@@ -1,7 +1,7 @@
-package ssd.assignment.myBlockchain;
+package myBlockchain;
 
-import ssd.assignment.crypto.Crypto;
-import ssd.assignment.config.*;
+import crypto.Crypto;
+import config.*;
 
 import javax.sound.midi.SysexMessage;
 import java.security.*;

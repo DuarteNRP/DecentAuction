@@ -1,4 +1,4 @@
-package ssd.assignment.myBlockchain;
+package myBlockchain;
 
 import lombok.Getter;
 import lombok.Setter;

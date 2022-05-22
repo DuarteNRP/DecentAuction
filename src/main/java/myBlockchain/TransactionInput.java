@@ -1,4 +1,4 @@
-package ssd.assignment.myBlockchain;
+package myBlockchain;
 
 public class TransactionInput {
     public String transactionOutputId; //Reference to TransactionOutputs -> transactionId

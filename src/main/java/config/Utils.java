@@ -1,11 +1,11 @@
-package ssd.assignment.config;
+package config;
 
 import java.math.BigInteger;
 import java.security.Key;
 import java.util.ArrayList;
 import java.util.Base64;
-import ssd.assignment.crypto.*;
-import ssd.assignment.myBlockchain.*;
+import crypto.*;
+import myBlockchain.*;
 
 public class Utils {
     private static Crypto crypto = new Crypto();
@@ -14,7 +14,7 @@ public class Utils {
     public static String getStringFromKey(Key key) {
         return Base64.getEncoder().encodeToString(key.getEncoded());
     }
-    public static String getMerkleRoot(ArrayList<Transaction> transactions) {
+    public static String getMerkleRoot(ArrayList<myBlockchain.Transaction> transactions) {
         int count = transactions.size();
         if(count==1){
             return crypto.hash(transactions.get(0).transactionId);

@@ -1,4 +1,4 @@
-package ssd.assignment.kademlia;
+package kademlia;
 
 public class pairKV {
     private byte[] keyBytes;

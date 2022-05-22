@@ -1,12 +1,12 @@
-package ssd.assignment.myBlockchain;
+package myBlockchain;
 
 import java.util.ArrayList;
 import java.util.Date;
 
 import lombok.Getter;
 import lombok.Setter;
-import ssd.assignment.crypto.Crypto;
-import ssd.assignment.config.*;
+import crypto.Crypto;
+import config.*;
 @Getter
 @Setter
 public class Block {

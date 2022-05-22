@@ -1,1 +1,1 @@
-# ssd.assignment.DecentAuction
+# DecentAuction

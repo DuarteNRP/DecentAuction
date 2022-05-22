@@ -1,6 +1,6 @@
-package ssd.assignment.kademlia;
+package kademlia;
 import java.net.InetAddress;
-import ssd.assignment.crypto.Crypto;
+import crypto.Crypto;
 
 public class node {
     private static final Crypto crypto = new Crypto();

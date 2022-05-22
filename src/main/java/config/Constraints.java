@@ -1,4 +1,4 @@
-package ssd.assignment.config;
+package config;
 
 public class Constraints {
 
