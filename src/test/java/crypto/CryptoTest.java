@@ -1,6 +1,6 @@
 package crypto;
 import org.junit.jupiter.api.Test;
-import ssd.assignment.crypto.Crypto;
+import crypto.Crypto;
 import java.security.KeyPair;
 
 import static org.junit.jupiter.api.Assertions.*;
