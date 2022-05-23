@@ -1,5 +1,5 @@
 package kademlia;
 
-public class pairKV {
+public class PairKV {
     private byte[] keyBytes;
 }
