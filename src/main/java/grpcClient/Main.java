@@ -6,7 +6,7 @@ import java.io.IOException;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        Node n = new Node();
+        /*Node n = new Node();
         ServerService s1 = new ServerService("localhost", 50001);
         try {
             s1.start();
@@ -15,6 +15,6 @@ public class Main {
             s1.blockUntilShutdown();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
-        }
+        }*/
     }
 }

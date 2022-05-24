@@ -1,6 +1,7 @@
 package config;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -13,6 +14,12 @@ public class Utils {
         return new BigInteger(arr).toString(16).toUpperCase(); }
     public static String getStringFromKey(Key key) {
         return Base64.getEncoder().encodeToString(key.getEncoded());
+    }
+    public static String getStringFromBytes(byte[] bytes){
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+    public static byte[] getBytesFromString(String str){
+        return str.getBytes(StandardCharsets.UTF_8);
     }
     public static String getMerkleRoot(ArrayList<myBlockchain.Transaction> transactions) {
         int count = transactions.size();
