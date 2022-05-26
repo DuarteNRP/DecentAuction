@@ -1,0 +1,83 @@
+Duvidas: Porquê que retornamos os k proximos e não só o resultado?;
+        Sybil attack: fazer hash do ip e da porta e timestamp chega(dps passar para binario chega?
+        eclipsse ataque como mitigar? chega fazer bootstrap de mais do que um nó para não gerar sempre os mesmos closest?
+        O que é a replicação e publicação (tReplicate, tRepublish)?
+        republicam todos os pares key/value e ao mesmo tempo apagam? texpire=treplicate
+        Não percebi a parte da expiração;
+        Para que serve o RTT neste caso?
+        Como funciona os nós mais confiantes que outros? os connectados mais tempo são os mais confiantes;
+
+K-buckets:
+Ordenação -> nós que comunicaram recentemente vão para o final da lista, mais antigos no inicio
+Updated-> quando recebe comunicação de um nó este vai para o final da lista se existir. Se não existir mete no fim
+da lita. Se a lista tiver cheia faz ping ao primeiro (mais) antigo, se este não responder elimina-o e
+adiciona o novo no fim da lista, se responder podemos eliminar o novo pedido;
+
+ping:
+O destinatário do PING deve atualizar o bucket correspondente ao remetente;
+e, se houver resposta, o remetente deve atualizar o bucket adequado ao destinatário.
+
+Store:
+remetente fornece chave e bloco de dados para o destinário guardar e disponibilizar posteriormente.
+remetente: manda NodeID, key, bloco de dados e comprimento dos dados;
+destinatário: envia nodeID do destinatário.
+
+Find_Node:
+Destinatário envia até k triplos (IP,port,NodeID) que sabe que estão mais proximos da chave
+O nome deste RPC é enganoso. Mesmo se a chave para o RPC for o nodeID de um contato existente ou mesmo se for o nodeID
+do próprio destinatário, o destinatário ainda precisará retornar k triplos. Um nome mais descritivo seria FIND_CLOSE_NODES.
+O destinatário de um FIND_NODE nunca deve retornar um triplo contendo o nodeID do solicitante. Se o solicitante receber
+tal triplo, ele deve descartá-lo. Um nó nunca deve colocar seu próprio nodeID em um bucket como um contato.
+
+Find_value:
+Um RPC FIND_VALUE inclui uma chave B=160 bits. Se um valor correspondente estiver presente no destinatário, os dados
+associados serão retornados. Caso contrário, o RPC é equivalente a um FIND_NODE e um conjunto de k triplos é retornado.
+comparo chave com nodeID dos nós nos buckets e retorno na mesma os mais proximos
+
+Lookup:(iterativo) (temos que procurar os k mais próximos? não basta encontrar o nó)
+Selecionamos alpha nós no k-bucket mais próximo, se tiver menos de alpha nesse bucket seleciona-se de outro k-bucket(qualquer um);
+O nó manda paralelos asyncronous Find_* RPC para os contactos alpha, que estão numa lista, que irão retornar k triples
+ou então serão eliminados da lista se não responderem;Seleciona novos alpha da lista e repete o processo, ter em atenção
+para não repetir nós (lista de visitados maybe?!);
+A busca paralela continua até que nenhum nó dos conjuntso retornados esteja mais próximo do que o nó mais proximo visto até então
+ou o nó inicial tenha acumulado k contactos testados e ativos;
+Se um ciclo não encontrar um nó mais proximo o nó inicial envia um find_* para cada um dos k nós mais proximos ainda ñ consultados;
+o final deste processo, o nó terá acumulado um conjunto de k contatos ativos ou (se o RPC foi FIND_VALUE) poderá ter encontrado um
+valor de dados. Ou um conjunto de triplos ou o valor é retornado ao chamador.
+
+Paralelismo com 3 opções(alpha=3):
+Mandar 3 de cada vez sempre que acabarem as 3;
+Mandar a próxima só quando acabar uma delas;
+Mandar a próxima com um atraso razoavel(kademlia usa este);
+
+Iterative STore:
+Faz um interativeFindNode, descobre os k mais pŕoximos e faz store neles da chave e value;
+
+IterativeFindValue:
+Se encontrar o valor abandona a pesquisa e retorna valor. Se não retorna os k mais proximos contactos;
+Quando um iterativeFindValue é bem-sucedido, o iniciador deve armazenar o par chave/valor no nó mais
+próximo visto que não retornou o valor.
+
+Refresh:
+Se nenhuma pesquisa de nó tiver sido realizada em qualquer intervalo de bucket para tRefresh (uma hora no Kademlia básico),
+o nó selecionará um número aleatório nesse intervalo e fará um refresh , um iterativeFindNode usando esse número como chave.
+
+Join:
+Um nó junta-se à rede da seguinte forma:
+se não tem nodeId, gera-se um;
+insere um triple de um nó conhecido no bucket como primeiro contacto;
+faz um iterativeFindNode para n;
+atualiza todos os buckets mais distantes do que o seu vizinho mais próximo conhecido;
+
+Regras:
+iterativeStore guarda no nó e nos k mais proximos;
+cada nó republica key/value em intervalos de tReplicate;
+o original de um key/value republicaa cada TRepublish;
+quando iterativeFindValue é bem sucedido o nó inicial deve armazenar key/value no nó mais proximo que nao retornou o valor;
+todos os pares chaves expiram após tExpire;
+Se a informação não for republish pelo o nó originial entao os nós eliminam a key/value;
+Nãpo percebi a parte da expiração, perguntar ao prof
+
+Ataque de Eclipsse:
+talvez de x em x tempo fazer uma alteração nas kbuckets de todos os nós para alterá-los para não manter contacto sempre
+com os mesmos nós.

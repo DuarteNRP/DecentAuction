@@ -18,8 +18,8 @@ public class Constraints {
     kademlia constraints
      */
     public static final int ALPHA = 3;
-    public static final int ID_LENGTH = 256;
-    public static final int K = 20;
+    public static final int ID_LENGTH = 4;//160
+    public static final int K = 2;//K=20
     //milliseconds
     public static final int T_EXPIRE = 86400000;
     public static final int T_REFRESH = 3600000;

@@ -7,6 +7,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import kademlia.Node;
+import kademlia.TripleNode;
 
 import java.util.logging.Logger;
 /*
@@ -32,7 +33,7 @@ public class DistributedClient {
         asyncStub = P2PServiceGrpc.newStub(this.channel);
     }
     //use Node ID to ping node
-    public void sendPing(Node node){
+    public void sendPing(TripleNode node){
         StreamObserver<Ping> responseObserver = new StreamObserver<Ping>(){
             @Override
             public void onNext(Ping value){

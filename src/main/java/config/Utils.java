@@ -10,8 +10,16 @@ import myBlockchain.*;
 
 public class Utils {
     private static Crypto crypto = new Crypto();
-    public static String getHexString(byte[] arr) {
-        return new BigInteger(arr).toString(16).toUpperCase(); }
+    public static int log2(long N){
+
+        // calculate log2 N indirectly
+        // using log() method
+        int result = (int)(Math.log(N) / Math.log(2));
+
+        return result;
+    }
+    public static String getBinaryFromHash(String str) {
+        return new BigInteger(str,16).toString(2); }
     public static String getStringFromKey(Key key) {
         return Base64.getEncoder().encodeToString(key.getEncoded());
     }

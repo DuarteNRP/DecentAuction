@@ -4,6 +4,8 @@ import ServiceGRPC.*;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
+import kademlia.Node;
+import kademlia.TripleNode;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -14,9 +16,15 @@ public class ServerService{
     private Server server;
     public String ip;
     public int port;
-    public ServerService(String ip, int port){
+    private Node serviceNode;
+    private TripleNode servicetripleNode;
+    private DistributedClient distributedClient;
+    public ServerService(String ip, int port,DistributedClient distributedClient){
         this.ip=ip;
         this.port=port;
+        this.distributedClient=distributedClient;
+        this.servicetripleNode = new TripleNode(this.ip,this.port,this.distributedClient);
+        this.serviceNode = new Node(this.servicetripleNode,this.distributedClient);
     }
     public void start() throws IOException {
         server = ServerBuilder.forPort(this.port)
@@ -59,8 +67,6 @@ public class ServerService{
         public void ping(Ping request, StreamObserver<Ping> responseObserver) {
             responseObserver.onNext(request);
             responseObserver.onCompleted();
-
-
         }
 
         @Override
