@@ -1,11 +1,23 @@
 Duvidas: Porquê que retornamos os k proximos e não só o resultado?;
         Sybil attack: fazer hash do ip e da porta e timestamp chega(dps passar para binario chega?
-        eclipsse ataque como mitigar? chega fazer bootstrap de mais do que um nó para não gerar sempre os mesmos closest?
+        "ACho que tenho que fazer um desafio timo mining com 00 iniciais! Ver paper"
+        eclipsse ataque como mitigar? aumentar o alpha?!
         O que é a replicação e publicação (tReplicate, tRepublish)?
         republicam todos os pares key/value e ao mesmo tempo apagam? texpire=treplicate
         Não percebi a parte da expiração;
         Para que serve o RTT neste caso?
         Como funciona os nós mais confiantes que outros? os connectados mais tempo são os mais confiantes;
+
+Ter em atenção passar para binario ou hash os id no node ao fazer os lookups
+k-buckets:
+Não eliminar nós, podemos sempre no final precisar deles e eles podem não comunicar naquele momento;
+Nos kbuckets pôr sem ter em conta a distância por ordem de nodeId, para não ocupar demasiado espaço e a procura e store ser facilitada;
+Dividir a meio quando estiver cheio e adicionar no sitio certo;
+Quando pedir um valor e der valores diferentes fazer um consenso?!
+OUTRA APROXIMAÇÃO:
+Adicionar nós! Se não tiver cheio adiciona, se tiver cheio divide esse ramo em 2, bit 0 para um lado e bit 1 para o outro
+Ao dividir, ver se onde era suposto inserir o nó se nesse ramo o nó orginal está dentro do range, se tiver adiciona, se não não adiciona;
+Problema: vai ser dificil implementar o lookup pois se o kbucket não estiver cheio, vamos ter de procurar noutros...
 
 K-buckets:
 Ordenação -> nós que comunicaram recentemente vão para o final da lista, mais antigos no inicio

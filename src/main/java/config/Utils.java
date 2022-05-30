@@ -10,6 +10,7 @@ import myBlockchain.*;
 
 public class Utils {
     private static Crypto crypto = new Crypto();
+    private static Constraints constraints= new Constraints();
     public static int log2(long N){
 
         // calculate log2 N indirectly
@@ -19,7 +20,9 @@ public class Utils {
         return result;
     }
     public static String getBinaryFromHash(String str) {
-        return new BigInteger(str,16).toString(2); }
+        String hashToBinary=new BigInteger(str,16).toString(2);
+        return hashToBinary.substring(hashToBinary.length()-constraints.ID_LENGTH);
+    }
     public static String getStringFromKey(Key key) {
         return Base64.getEncoder().encodeToString(key.getEncoded());
     }

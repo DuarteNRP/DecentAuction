@@ -14,24 +14,39 @@ public class Bucket {
     public Bucket() {
         this.kBucket = new ArrayList<>();
     }
+    public Bucket(ArrayList<TripleNode> arraylist){
+        this.kBucket=arraylist;
+    }
     private TripleNode node;
-    private DistributedClient client;
 
     public boolean containsTripleNode(TripleNode tripleNode) {
-        return kBucket.contains(tripleNode);
-    }
-    public void addTripleNode(TripleNode currentTripleNode, TripleNode newTripleNode){
-        if(kBucketIsFull()) {
-            client.sendPing(kBucket.get(0));
-            return;
+        boolean contains=false;
+        TripleNode t=null;
+        for(TripleNode current : kBucket){
+            if(current.getNodeId().equals(tripleNode.getNodeId())) {
+                t=current;
+                contains = true;
+            }
         }
-        kBucket.add(newTripleNode);
+        if(contains){
+            kBucket.remove(t);
+            kBucket.add(t);
+            return true;
+        }
+        return false;
     }
-    public boolean kBucketIsFull(){
+    public boolean isNotFull(){
         return this.kBucket.size()<constraints.K;
     }
-    public void transferToLastPosition(TripleNode tripleNode){
-        kBucket.remove(tripleNode);
-        kBucket.add(tripleNode);
+    public void addTripleNode(TripleNode node){
+        kBucket.add(node);
+    }
+    @Override
+    public String toString(){
+        String text = "[";
+        for(TripleNode t : kBucket){
+            text+=t.toString()+",";
+        }
+        return text+="]";
     }
 }

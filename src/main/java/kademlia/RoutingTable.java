@@ -1,18 +1,37 @@
 package kademlia;
 import config.Constraints;
 import grpcClient.DistributedClient;
+import lombok.Getter;
+import lombok.Setter;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+@Getter
+@Setter
 public class RoutingTable {
-    public transient Bucket[] buckets;
+    public static Constraints constraints = new Constraints();
+    public long numberOfContacts;
     private TripleNode node;
-    private DistributedClient client;
-    public RoutingTable(TripleNode node,DistributedClient client) {
+    private BinaryTreeNode rootBinaryTreeNode;
+    public RoutingTable(TripleNode node) {
         this.node=node;
-        this.client=client;
-        this.buckets = new Bucket[Constraints.ID_LENGTH];
-        for(Bucket bucket : buckets){
-            bucket.setNode(node);
-            bucket.setClient(client);
+        this.numberOfContacts=0;
+        this.rootBinaryTreeNode=new BinaryTreeNode(new Bucket(),"");
+    }
+    public void printRouteTable() {
+        System.out.println("------------------");
+        print(this.rootBinaryTreeNode);
+        System.out.println("------------------");
+    }
+    public void print(BinaryTreeNode root){
+        if(root==null)
+            return;
+        if(root.getRight()==null && root.getLeft()==null){
+            System.out.println("prefix: "+root.getBitsPrefix());
+            System.out.println("kbucket: "+root.getKBucket().toString());
+            return;
         }
+        print(root.getLeft());
+        print(root.getRight());
     }
 }

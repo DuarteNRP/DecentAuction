@@ -23,8 +23,8 @@ public class ServerService{
         this.ip=ip;
         this.port=port;
         this.distributedClient=distributedClient;
-        this.servicetripleNode = new TripleNode(this.ip,this.port,this.distributedClient);
-        this.serviceNode = new Node(this.servicetripleNode,this.distributedClient);
+        this.servicetripleNode = new TripleNode(this.ip,this.port);
+        this.serviceNode = new Node(this.servicetripleNode);
     }
     public void start() throws IOException {
         server = ServerBuilder.forPort(this.port)

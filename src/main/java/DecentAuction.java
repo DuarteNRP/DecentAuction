@@ -1,32 +1,61 @@
+import config.Constraints;
 import config.Utils;
 import crypto.Crypto;
+import grpcClient.DistributedClient;
+import kademlia.BinaryTreeNode;
+import kademlia.Bucket;
 import kademlia.Node;
+import kademlia.TripleNode;
+
 import java.math.BigInteger;
+import java.util.ArrayList;
+
 public class DecentAuction {
     private static final Utils utils = new Utils();
     private static final Crypto cripto = new Crypto();
+    private static final Constraints constraints = new Constraints();
     public static void main(String[] args) {
-        /*String s = "10010011";
-        String s2 = "01011010";
-        char a = 'A';
-        char b1 = 'B';
-        System.out.println(a^b1);
-        byte[] b = s.getBytes();
-        byte[] b2 = s2.getBytes();
-        Node n1 = new Node(b);
-        Node n2 = new Node(b2);
-        System.out.println(utils.getStringFromBytes(n1.distanceXOR(n2.getNodeId())));
-         */
-        System.out.println(utils.log2((int)14.333));
-        String test = cripto.hash("fioerhgur4go3454otn3krgnl4");
-        System.out.println(test);
-        System.out.println(new BigInteger(test,16));
-        System.out.println(new BigInteger(test,16).toString(2).length());
-        String bin = "1111";
-        String bin2 = "1010";
-        int numero1 = Integer.parseInt(bin, 2);
-        int numero2 = Integer.parseInt(bin2, 2);//Nome da variavel e tipo, 2 = binary. Converte o binario para int
-        System.out.println(numero1^numero2);
+        //test kademlia buckets
+        DecentAuction test = new DecentAuction();
+        test.testTryAddNode();
 
+    }
+    public void testTryAddNode(){
+        TripleNode tripleNode1 =new TripleNode("localhost",50001);
+        TripleNode tripleNode2 =new TripleNode("localhost",50002);
+        TripleNode tripleNode3 =new TripleNode("localhost",50003);
+        TripleNode tripleNode4 =new TripleNode("localhost",50004);
+        TripleNode tripleNode5 =new TripleNode("localhost",50005);
+        TripleNode tripleNode6 =new TripleNode("localhost",50006);
+        TripleNode tripleNode7 =new TripleNode("localhost",50007);
+        TripleNode tripleNode8 =new TripleNode("localhost",50008);
+        TripleNode tripleNode9 =new TripleNode("localhost",50009);
+        TripleNode tripleNode10 =new TripleNode("localhost",50010);
+        DistributedClient d = new DistributedClient("localhost",50001);
+        Node node = new Node(tripleNode1);
+        d.setNode(node);
+        node.setDistributedClientClient(d);
+        node.tryToAddNode(tripleNode1);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode1);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode2);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode3);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode4);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode5);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode6);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode7);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode8);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode9);
+        node.printRouteTable();
+        node.tryToAddNode(tripleNode10);
+        node.printRouteTable();
     }
 }

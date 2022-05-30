@@ -1,6 +1,10 @@
 package kademlia;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
+import config.Constraints;
 import config.Utils;
 import crypto.Crypto;
 import lombok.Getter;
@@ -11,21 +15,23 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Getter
 @Setter
-public class Node {
+public class Node{
+    public Map<String,byte[]> data;
     public RoutingTable routingtable;
     private static final Crypto crypto = new Crypto();
     private static final Utils utils = new Utils();
+    private static final Constraints constraints = new Constraints();
     //Binary number of 256 bits length
     private String nodeId;
     private InetAddress inetAddress;
     private int port;
     private TripleNode node;
-    private DistributedClient client;
-    public Node(TripleNode node, DistributedClient distributedClient){
+    private DistributedClient distributedClientClient;
+    public Node(TripleNode node){
         this.node=node;
-        this.client=distributedClient;
         this.nodeId=node.getNodeId();
-        this.routingtable = new RoutingTable(node,distributedClient);
+        this.routingtable = new RoutingTable(node);
+        this.data = new HashMap<>();
     }
     public String getHash() {
         return crypto.hash(this.toString());
@@ -47,13 +53,134 @@ public class Node {
         }
         return Integer.parseInt(answer, 2);
     }
-    public void addNode(TripleNode tripleNode){
-        long distance=this.distanceXOR(tripleNode.getNodeId());
-        int kBucket=(int)utils.log2(distance);
-        if(routingtable.buckets[kBucket].containsTripleNode(tripleNode)){
-            routingtable.buckets[kBucket].transferToLastPosition(tripleNode);
+    public void tryToAddNode(TripleNode tripleNode){
+        System.out.println("Try to add node: "+tripleNode.getNodeId());
+        //String binaryNodeId=utils.getBinaryFromHash(tripleNode.getNodeId());
+        String binaryNodeId = tripleNode.getNodeId();
+        BinaryTreeNode currentTreeNode = routingtable.getRootBinaryTreeNode();
+        int bitCursor = 0;
+        String accumulatedBits="";
+        //while we don't find a leaf
+        myTriple triple = this.lookUp(currentTreeNode,binaryNodeId,bitCursor,accumulatedBits);
+        currentTreeNode = triple.getBinaryTreeNode();
+        Bucket kBucket = currentTreeNode.getKBucket();
+        bitCursor=triple.getCursor();
+        accumulatedBits=triple.getAccumulatedBits();
+        if(kBucket.containsTripleNode(tripleNode)) {
+            System.out.println("Already contains node!");
             return;
         }
-        routingtable.buckets[kBucket].addTripleNode(this.node,tripleNode);
+        //if kBucket not empty, just add
+        if(kBucket.isNotFull()) {
+            kBucket.addTripleNode(tripleNode);
+            System.out.println("Added to kbucket: "+kBucket.toString());
+            return;
+        }
+        while(this.isInRange(bitCursor,accumulatedBits)){
+            ArrayList<TripleNode> left = new ArrayList<>();
+            ArrayList<TripleNode> right = new ArrayList<>();
+            System.out.println("SPLIT");
+            this.createTemporaryLeafs(left,right,bitCursor,currentTreeNode);
+            currentTreeNode.createNewLevel(new Bucket(left),new Bucket(right));
+            if(binaryNodeId.charAt(bitCursor)=='0') {
+                accumulatedBits+="0";
+                currentTreeNode = currentTreeNode.getLeft();
+            }
+            else {
+                accumulatedBits+="1";
+                currentTreeNode=currentTreeNode.getRight();
+            }
+            kBucket=currentTreeNode.getKBucket();
+            bitCursor++;
+            if(kBucket.isNotFull()) {
+                kBucket.addTripleNode(tripleNode);
+                System.out.println("Added to kbucket: "+kBucket.toString());
+                return;
+            }
+        }
+        System.out.println("Not in range, so not added!");
+    }
+    public myTriple lookUp(BinaryTreeNode currentTreeNode, String binaryNodeId, int bitCursor,String accumulatedBits){
+        while(currentTreeNode.getKBucket()==null){
+            if(binaryNodeId.charAt(bitCursor)=='0') {
+                accumulatedBits+="0";
+                currentTreeNode = currentTreeNode.getLeft();
+            }
+            else {
+                accumulatedBits+="1";
+                currentTreeNode = currentTreeNode.getRight();
+            }
+            bitCursor++;
+        }
+        return new myTriple(currentTreeNode,bitCursor,accumulatedBits);
+    }
+    public void createTemporaryLeafs(ArrayList<TripleNode> left,ArrayList<TripleNode> right,int cursor,BinaryTreeNode currentTreeNode){
+        System.out.println("cursor: "+ cursor);
+        System.out.println("bucket: "+ currentTreeNode.getKBucket());
+        for(TripleNode t: currentTreeNode.getKBucket().getKBucket()){
+            //String currentBitNodeId = utils.getBinaryFromHash(t.getNodeId());
+            String currentBitNodeId = t.getNodeId();
+            if(currentBitNodeId.charAt(cursor)=='0'){
+                left.add(t);
+            }
+            else right.add(t);
+        }
+    }
+    public boolean isInRange(int cursor,String accumulatedBits){
+        if(cursor==0) return true;
+        //String binaryNodeId=utils.getBinaryFromHash(this.nodeId);
+        String binaryNodeId=this.nodeId;
+        for(int i=0;i<cursor;i++){
+            if((accumulatedBits.charAt(i)^binaryNodeId.charAt(i))!=0){
+                return false;
+            }
+        }
+        return true;
+    }
+    public ArrayList<TripleNode> findKClosestNodes(TripleNode tripleNode){
+        ArrayList<Bucket> visited= new ArrayList<>();
+        int kClosest=constraints.K;
+        ArrayList<TripleNode> closestNodes;
+        //String binaryNodeId=utils.getBinaryFromHash(tripleNode.getNodeId());
+        String binaryNodeId=tripleNode.getNodeId();
+        BinaryTreeNode currentTreeNode = routingtable.getRootBinaryTreeNode();
+        int bitCursor = 0;
+        String accumulatedBits="";
+        //while we don't find a leaf
+        myTriple triple = this.lookUp(currentTreeNode,binaryNodeId,bitCursor,accumulatedBits);
+        currentTreeNode = triple.getBinaryTreeNode();
+        Bucket kBucket = currentTreeNode.getKBucket();
+        accumulatedBits=triple.getAccumulatedBits();
+        closestNodes=(ArrayList<TripleNode>) kBucket.getKBucket().clone();
+        visited.add(kBucket);
+        kClosest-=closestNodes.size();
+        int changeBit;
+        //flag to change to first prefix bits
+        while(kClosest>0){
+            String newPrefix;
+            String fakeNodeId;
+            changeBit=accumulatedBits.length()-1;
+            fakeNodeId=nodeId.substring(nodeId.length()-accumulatedBits.length());
+            if(accumulatedBits.charAt(accumulatedBits.length()-1)=='0'){
+                newPrefix=accumulatedBits.substring(0,changeBit)+"1";
+            }
+            else
+                newPrefix=accumulatedBits.substring(0,changeBit)+"0";
+            fakeNodeId=newPrefix + ""+ fakeNodeId;
+            triple=this.lookUp(routingtable.getRootBinaryTreeNode(),fakeNodeId,0,"");
+            kBucket = triple.getBinaryTreeNode().getKBucket();
+            if(visited.contains(kBucket)){
+                continue;
+            }
+            accumulatedBits=triple.getAccumulatedBits();
+            closestNodes.addAll(kBucket.getKBucket());
+            visited.add(kBucket);
+            kClosest-=closestNodes.size();
+            }
+        return null;
+    }
+    public void printRouteTable() {
+        this.routingtable.printRouteTable();
+
     }
 }
