@@ -79,7 +79,6 @@ public class Node{
         while(this.isInRange(bitCursor,accumulatedBits)){
             ArrayList<TripleNode> left = new ArrayList<>();
             ArrayList<TripleNode> right = new ArrayList<>();
-            System.out.println("SPLIT");
             this.createTemporaryLeafs(left,right,bitCursor,currentTreeNode);
             currentTreeNode.createNewLevel(new Bucket(left),new Bucket(right));
             if(binaryNodeId.charAt(bitCursor)=='0') {
@@ -115,8 +114,6 @@ public class Node{
         return new myTriple(currentTreeNode,bitCursor,accumulatedBits);
     }
     public void createTemporaryLeafs(ArrayList<TripleNode> left,ArrayList<TripleNode> right,int cursor,BinaryTreeNode currentTreeNode){
-        System.out.println("cursor: "+ cursor);
-        System.out.println("bucket: "+ currentTreeNode.getKBucket());
         for(TripleNode t: currentTreeNode.getKBucket().getKBucket()){
             //String currentBitNodeId = utils.getBinaryFromHash(t.getNodeId());
             String currentBitNodeId = t.getNodeId();
@@ -138,6 +135,7 @@ public class Node{
         return true;
     }
     public ArrayList<TripleNode> findKClosestNodes(TripleNode tripleNode){
+        System.out.println("Try to find kclosest from: " + tripleNode.getNodeId());
         ArrayList<Bucket> visited= new ArrayList<>();
         int kClosest=constraints.K;
         ArrayList<TripleNode> closestNodes;
@@ -160,8 +158,12 @@ public class Node{
             String newPrefix;
             String fakeNodeId;
             changeBit=accumulatedBits.length()-1;
-            fakeNodeId=nodeId.substring(nodeId.length()-accumulatedBits.length());
-            if(accumulatedBits.charAt(accumulatedBits.length()-1)=='0'){
+            if(changeBit==-1){
+                System.out.println("Contains less than k nodes in route table");
+                break;
+            }
+            fakeNodeId=binaryNodeId.substring(changeBit+1);
+            if(accumulatedBits.charAt(changeBit)=='0'){
                 newPrefix=accumulatedBits.substring(0,changeBit)+"1";
             }
             else
@@ -170,6 +172,7 @@ public class Node{
             triple=this.lookUp(routingtable.getRootBinaryTreeNode(),fakeNodeId,0,"");
             kBucket = triple.getBinaryTreeNode().getKBucket();
             if(visited.contains(kBucket)){
+                accumulatedBits=accumulatedBits.substring(0,changeBit);
                 continue;
             }
             accumulatedBits=triple.getAccumulatedBits();
@@ -177,7 +180,11 @@ public class Node{
             visited.add(kBucket);
             kClosest-=closestNodes.size();
             }
-        return null;
+        utils.sortArrayList(closestNodes,binaryNodeId);
+        if(closestNodes.size()>constraints.K){
+            return new ArrayList<TripleNode>( closestNodes.subList(0,constraints.K));
+        }
+        return closestNodes;
     }
     public void printRouteTable() {
         this.routingtable.printRouteTable();

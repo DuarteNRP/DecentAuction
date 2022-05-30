@@ -3,9 +3,10 @@ package config;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
-import java.util.ArrayList;
-import java.util.Base64;
+import java.util.*;
+
 import crypto.*;
+import kademlia.TripleNode;
 import myBlockchain.*;
 
 public class Utils {
@@ -56,5 +57,24 @@ public class Utils {
         }
         String merkleRoot = (treeLayer.size() == 1) ? treeLayer.get(0) : "";
         return merkleRoot;
+    }
+    public void sortArrayList(ArrayList<TripleNode> tripleNodes, String nodeId){
+        System.out.println(nodeId);
+        Collections.sort(tripleNodes, (t1, t2) -> {
+            if(distanceXOR(nodeId,t1.getNodeId())>distanceXOR(nodeId,t2.getNodeId()))
+                return 1;
+            return -1;
+        });
+    }
+    public long distanceXOR(String nodeId1,String nodeId2){
+        if(nodeId1.length()!=nodeId2.length()){
+            System.out.println("Error: different nodeId lengths");
+            return -1;
+        }
+        String answer = "";
+        for(int i = 0; i<nodeId1.length();i++){
+            answer+=Integer.toString(nodeId1.charAt(i)^nodeId2.charAt(i));
+        }
+        return Integer.parseInt(answer, 2);
     }
 }
