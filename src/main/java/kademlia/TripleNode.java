@@ -22,6 +22,11 @@ public class TripleNode {
         this.nodeId=utils.getBinaryFromHash(crypto.hash(ip+Integer.toString(port)+Long.toString(new Date().getTime())));
         //this.nodeId=crypto.hash(ip+Integer.toString(port)+Long.toString(new Date().getTime()));
     }
+    public TripleNode(String nodeId,String ip,int port){
+        this.ip=ip;
+        this.port=port;
+        this.nodeId=nodeId;
+    }
     @Override
     public String toString(){
         return nodeId;

@@ -1,5 +1,6 @@
 package grpcClient;
 
+import ServiceGRPC.KBucket;
 import ServiceGRPC.P2PServiceGrpc;
 import ServiceGRPC.Ping;
 import io.grpc.ManagedChannel;
@@ -11,6 +12,9 @@ import kademlia.TripleNode;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.logging.Logger;
 /*
 Agora faz tudo mais sentido, como comunico com os vários serviços? crio um stub para o channel do nó que quero comunicar
@@ -31,12 +35,20 @@ public class DistributedClient {
         this.port=port;
     }
     public P2PServiceGrpc.P2PServiceStub newAsyncStub(TripleNode node){
-        ManagedChannel channel= ManagedChannelBuilder.forTarget(ip+":"+port)
+        ManagedChannel channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
                 // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
                 // needing certificates.
                 .usePlaintext()
                 .build();
         return P2PServiceGrpc.newStub(channel);
+    }
+    public P2PServiceGrpc.P2PServiceBlockingStub newBlockingStub(TripleNode node){
+        ManagedChannel channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
+                // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
+                // needing certificates.
+                .usePlaintext()
+                .build();
+        return P2PServiceGrpc.newBlockingStub(channel);
     }
     //use Node ID to ping node
     public void sendPing(TripleNode node){
@@ -52,12 +64,13 @@ public class DistributedClient {
             }
             @Override
             public void onCompleted() {
-
             }
         };
         try {
             Ping ping = Ping.newBuilder()
-                    .setNodeId("1")
+                    .setNodeId(this.node.getNode().getNodeId())
+                    .setIp(this.node.getNode().getIp())
+                    .setPort(this.node.getNode().getPort())
                     .build();
             asyncStub.ping(ping,responseObserver);
         } catch(StatusRuntimeException e){
@@ -65,5 +78,37 @@ public class DistributedClient {
         }
 
     }
+    public void findNode(List<TripleNode> list,TripleNode node,TripleNode target){
+        List<TripleNode> tripleNodes = Collections.synchronizedList(new ArrayList<>());
+        P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
+        StreamObserver<KBucket> responseObserver = new StreamObserver<KBucket> (){
+            @Override
+            public void onNext(KBucket value) {
+                TripleNode newNode = new TripleNode(value.getNodeId(), value.getIp(), value.getPort());
+                synchronized (list) {
+                    list.add(newNode);
+                }
+            }
 
+            @Override
+            public void onError(Throwable t) {
+                System.out.println("Não respondeu!");
+            }
+
+            @Override
+            public void onCompleted() {
+                System.out.println("Acabou com sucesso");
+            }
+        };
+        try {
+            Ping ping = Ping.newBuilder()
+                    .setNodeId(target.getNodeId())
+                    .setIp(target.getIp())
+                    .setPort(target.getPort())
+                    .build();
+            asyncStub.findNode(ping,responseObserver);
+        } catch(StatusRuntimeException e){
+            logger.info("RPC failed: {0}"+ e.getStatus()+"!");
+        }
+    }
 }

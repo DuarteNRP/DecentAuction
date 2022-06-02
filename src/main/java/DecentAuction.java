@@ -2,11 +2,13 @@ import config.Constraints;
 import config.Utils;
 import crypto.Crypto;
 import grpcClient.DistributedClient;
+import grpcClient.ServerService;
 import kademlia.BinaryTreeNode;
 import kademlia.Bucket;
 import kademlia.Node;
 import kademlia.TripleNode;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 
@@ -14,17 +16,23 @@ public class DecentAuction {
     private static final Utils utils = new Utils();
     private static final Crypto cripto = new Crypto();
     private static final Constraints constraints = new Constraints();
-    public static void main(String[] args){
+    static final ServerService serverService1 = new ServerService("localhost",50000);
+    static final ServerService serverService2 = new ServerService("localhost",50001);
+    public static void main(String[] args) throws IOException, InterruptedException {
         //test kademlia buckets
         DecentAuction test = new DecentAuction();
-        TripleNode tripleNode =new TripleNode("localhost",50000);
-        DistributedClient d = new DistributedClient("localhost",50001);
-        Node node = new Node(tripleNode);
-        d.setNode(node);
-        node.setDistributedClientClient(d);
+        serverService1.start();
+        serverService2.start();
+        Node node = serverService1.getServiceNode();
+        Node node1 = serverService2.getServiceNode();
+        TripleNode testTripleNode = serverService2.getServiceTripleNode();
         test.testTryAddNode(node);
-        TripleNode tripleNode11 =new TripleNode("localhost",50001);
-        System.out.print(test.testFindKClosest(node,tripleNode11));
+        test.testTryAddNode(node1);
+        //test.testFindKClosest(node,serverService2.getServiceTripleNode());
+        //test.testPing(node,testTripleNode);
+        test.testFindNodes(node,testTripleNode);
+        serverService1.blockUntilShutdown();
+        serverService2.blockUntilShutdown();
 
 
     }
@@ -49,9 +57,26 @@ public class DecentAuction {
         node.tryToAddNode(tripleNode8);
         node.tryToAddNode(tripleNode9);
         node.tryToAddNode(tripleNode10);
+        System.out.println("Routing Table do nó: "+node.getNodeId());
         node.printRouteTable();
     }
     public ArrayList<TripleNode> testFindKClosest(Node node, TripleNode triple){
+        utils.printTriples(node.findKClosestNodes(triple));
         return node.findKClosestNodes(triple);
+    }
+    public void testPing(Node node,TripleNode tripleNode) throws InterruptedException {
+        node.pingNode(tripleNode);
+        int port=tripleNode.getPort();
+        tripleNode.setPort(2);
+        node.pingNode(tripleNode);
+        tripleNode.setPort(port);
+        node.pingNode(tripleNode);
+        serverService2.getServiceNode().printRouteTable();
+    }
+    public void testFindNodes(Node node,TripleNode tripleNode) throws InterruptedException {
+        System.out.println("Find nodes");
+        ArrayList<TripleNode> foundNodes = node.findNode(tripleNode);
+        System.out.println("pritn kclosestnodes");
+        System.out.println(foundNodes);
     }
 }

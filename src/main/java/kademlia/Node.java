@@ -1,8 +1,9 @@
 package kademlia;
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import config.Constraints;
 import config.Utils;
@@ -26,7 +27,7 @@ public class Node{
     private InetAddress inetAddress;
     private int port;
     private TripleNode node;
-    private DistributedClient distributedClientClient;
+    private DistributedClient distributedClient;
     public Node(TripleNode node){
         this.node=node;
         this.nodeId=node.getNodeId();
@@ -54,7 +55,7 @@ public class Node{
         return Integer.parseInt(answer, 2);
     }
     public void tryToAddNode(TripleNode tripleNode){
-        System.out.println("Try to add node: "+tripleNode.getNodeId());
+        //System.out.println("Try to add node: "+tripleNode.getNodeId());
         //String binaryNodeId=utils.getBinaryFromHash(tripleNode.getNodeId());
         String binaryNodeId = tripleNode.getNodeId();
         BinaryTreeNode currentTreeNode = routingtable.getRootBinaryTreeNode();
@@ -67,13 +68,13 @@ public class Node{
         bitCursor=triple.getCursor();
         accumulatedBits=triple.getAccumulatedBits();
         if(kBucket.containsTripleNode(tripleNode)) {
-            System.out.println("Already contains node!");
+            //System.out.println("Already contains node!");
             return;
         }
         //if kBucket not empty, just add
         if(kBucket.isNotFull()) {
             kBucket.addTripleNode(tripleNode);
-            System.out.println("Added to kbucket: "+kBucket.toString());
+            //System.out.println("Added to kbucket: "+kBucket.toString());
             return;
         }
         while(this.isInRange(bitCursor,accumulatedBits)){
@@ -93,11 +94,11 @@ public class Node{
             bitCursor++;
             if(kBucket.isNotFull()) {
                 kBucket.addTripleNode(tripleNode);
-                System.out.println("Added to kbucket: "+kBucket.toString());
+                //System.out.println("Added to kbucket: "+kBucket.toString());
                 return;
             }
         }
-        System.out.println("Not in range, so not added!");
+        //System.out.println("Not in range, so not added!");
     }
     public myTriple lookUp(BinaryTreeNode currentTreeNode, String binaryNodeId, int bitCursor,String accumulatedBits){
         while(currentTreeNode.getKBucket()==null){
@@ -189,5 +190,84 @@ public class Node{
     public void printRouteTable() {
         this.routingtable.printRouteTable();
 
+    }
+    public void pingNode(TripleNode tripleNode){
+        this.distributedClient.sendPing(tripleNode);
+    }
+    public ArrayList<TripleNode> findNode(TripleNode tripleNode) throws InterruptedException {
+        System.out.println("Começou");
+        CopyOnWriteArrayList<TripleNode> closestNodes = new CopyOnWriteArrayList<>(this.findKClosestNodes(tripleNode));
+        if(closestNodes.size()>constraints.K)
+            closestNodes= (CopyOnWriteArrayList) closestNodes.subList(0,constraints.ALPHA);
+        CopyOnWriteArrayList<TripleNode> kClosestNodes = new CopyOnWriteArrayList<>();
+        CopyOnWriteArrayList<String> visited = new CopyOnWriteArrayList<>();
+        while(true) {
+            int size = (closestNodes.size()<constraints.ALPHA) ? closestNodes.size() : constraints.ALPHA;
+            System.out.println("Ver o array closest");
+            System.out.println(closestNodes);
+            System.out.println(kClosestNodes);
+            parallelFindNode(kClosestNodes,closestNodes,visited,tripleNode);
+            if (utils.removeVisited(closestNodes, visited).size() == 0) {
+                break;
+            }
+        }
+        System.out.println("saiu");
+        ArrayList<TripleNode> finalKClosestNodes = new ArrayList<>(kClosestNodes);
+        utils.sortArrayList(finalKClosestNodes,tripleNode.getNodeId());
+        System.out.println(finalKClosestNodes);
+        if(finalKClosestNodes.size()>constraints.K){
+            return new ArrayList<TripleNode>( finalKClosestNodes.subList(0,constraints.K));
+        }
+        return new ArrayList<>(finalKClosestNodes);
+    }
+    public void parallelFindNode(CopyOnWriteArrayList<TripleNode> kClosestNodes,CopyOnWriteArrayList<TripleNode> closestNodes,CopyOnWriteArrayList<String> visited,TripleNode target) throws InterruptedException {
+        System.out.println("Chegou");
+        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(3);
+        for(int i=0;i<closestNodes.size();i++){
+            int index=i;
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    TripleNode tripleNode = closestNodes.get(index);
+                    distributedClient.findNode(closestNodes,tripleNode,target);
+                    visited.add(tripleNode.getNodeId());
+                    kClosestNodes.add(tripleNode);
+                }
+            });
+
+            if(i==2) break;
+        }
+        executor.shutdown();
+        System.out.println("A fazer threads ainda");
+        Thread.sleep(5000);
+        while(!executor.isTerminated()){}
+        System.out.println("Acabou threads");
+    }
+    //find node sem ser paralelo, acho que o outro já está a funcionar
+    public ArrayList<TripleNode> findNode1(TripleNode tripleNode) throws InterruptedException {
+        System.out.println("Começou");
+        CopyOnWriteArrayList<TripleNode> closestNodes = new CopyOnWriteArrayList<>(this.findKClosestNodes(tripleNode));
+        if(closestNodes.size()>constraints.K)
+            closestNodes= (CopyOnWriteArrayList) closestNodes.subList(0,constraints.ALPHA);
+        CopyOnWriteArrayList<TripleNode> kClosestNodes = new CopyOnWriteArrayList<>();
+        List<String> visited = Collections.synchronizedList(new ArrayList<>());
+        while(true) {
+            System.out.println("Ver o array closest");
+            System.out.println(closestNodes);
+            System.out.println(kClosestNodes);
+            kClosestNodes.add(closestNodes.get(0));
+            visited.add(closestNodes.get(0).getNodeId());
+            distributedClient.findNode(closestNodes,closestNodes.get(0),tripleNode);
+            if (utils.removeVisited(closestNodes, visited).size() == 0) {
+                    break;
+            }
+        }
+        System.out.println("saiu");
+        ArrayList<TripleNode> finalKClosestNodes = new ArrayList<>(kClosestNodes);
+        utils.sortArrayList(finalKClosestNodes,tripleNode.getNodeId());
+        if(finalKClosestNodes.size()>constraints.K){
+            return new ArrayList<TripleNode>( finalKClosestNodes.subList(0,constraints.K));
+        }
+        return new ArrayList<>(finalKClosestNodes);
     }
 }

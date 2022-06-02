@@ -9,6 +9,8 @@ Duvidas: Porquê que retornamos os k proximos e não só o resultado?;
         Como funciona os nós mais confiantes que outros? os connectados mais tempo são os mais confiantes;
 
 Ter em atenção passar para binario ou hash os id no node ao fazer os lookups
+No find node não removo
+
 k-buckets:
 Não eliminar nós, podemos sempre no final precisar deles e eles podem não comunicar naquele momento;
 Nos kbuckets pôr sem ter em conta a distância por ordem de nodeId, para não ocupar demasiado espaço e a procura e store ser facilitada;

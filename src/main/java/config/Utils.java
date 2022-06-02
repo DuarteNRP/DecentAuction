@@ -59,7 +59,6 @@ public class Utils {
         return merkleRoot;
     }
     public void sortArrayList(ArrayList<TripleNode> tripleNodes, String nodeId){
-        System.out.println(nodeId);
         Collections.sort(tripleNodes, (t1, t2) -> {
             if(distanceXOR(nodeId,t1.getNodeId())>distanceXOR(nodeId,t2.getNodeId()))
                 return 1;
@@ -76,5 +75,18 @@ public class Utils {
             answer+=Integer.toString(nodeId1.charAt(i)^nodeId2.charAt(i));
         }
         return Integer.parseInt(answer, 2);
+    }
+    public List<TripleNode> removeVisited(List<TripleNode> tripleNode, List<String> visited){
+        for(TripleNode t :tripleNode){
+            if(visited.contains(t.getNodeId())){
+                tripleNode.remove(t);
+            }
+        }
+        return tripleNode;
+    }
+    public void printTriples(ArrayList<TripleNode> tripleNodes){
+        for(TripleNode t : tripleNodes){
+            System.out.println(t.getNodeId());
+        }
     }
 }
