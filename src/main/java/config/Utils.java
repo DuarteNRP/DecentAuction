@@ -67,7 +67,7 @@ public class Utils {
     }
     public long distanceXOR(String nodeId1,String nodeId2){
         if(nodeId1.length()!=nodeId2.length()){
-            System.out.println("Error: different nodeId lengths");
+            System.out.println("Different nodeId lengths");
             return -1;
         }
         String answer = "";

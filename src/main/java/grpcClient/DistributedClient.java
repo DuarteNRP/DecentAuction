@@ -14,6 +14,7 @@ import lombok.Setter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 /*
 Agora faz tudo mais sentido, como comunico com os vários serviços? crio um stub para o channel do nó que quero comunicar
@@ -26,6 +27,7 @@ public class DistributedClient {
     public String ip;
     public int port;
     public Node node;
+    public ManagedChannel channel;
     /*private ManagedChannel channel;
     private P2PServiceGrpc.P2PServiceBlockingStub blockingStub;
     private P2PServiceGrpc.P2PServiceStub asyncStub;*/
@@ -34,11 +36,12 @@ public class DistributedClient {
         this.port=port;
     }
     public P2PServiceGrpc.P2PServiceStub newAsyncStub(TripleNode node){
-        ManagedChannel channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
+        channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
                 // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
                 // needing certificates.
                 .usePlaintext()
                 .build();
+
         return P2PServiceGrpc.newStub(channel);
     }
     public P2PServiceGrpc.P2PServiceBlockingStub newBlockingStub(TripleNode node){
@@ -49,8 +52,16 @@ public class DistributedClient {
                 .build();
         return P2PServiceGrpc.newBlockingStub(channel);
     }
+    public void closeConnection(ManagedChannel channel) throws InterruptedException {
+        channel.shutdownNow();
+        try {
+            channel.awaitTermination(1, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
     //use Node ID to ping node
-    public void sendPing(TripleNode node){
+    public void sendPing(TripleNode node) throws InterruptedException {
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Ping> responseObserver = new StreamObserver<Ping>(){
             @Override
@@ -60,9 +71,19 @@ public class DistributedClient {
             @Override
             public void onError(Throwable t) {
                 System.out.println("No connection, removed node");
+                try {
+                    closeConnection(channel);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
             @Override
             public void onCompleted() {
+                try {
+                    closeConnection(channel);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
         };
         try {
@@ -77,7 +98,7 @@ public class DistributedClient {
         }
 
     }
-    public void findNode(List<TripleNode> list,TripleNode node,TripleNode target){
+    public void findNode(List<TripleNode> list,TripleNode node,TripleNode target) throws InterruptedException {
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<KBucket> responseObserver = new StreamObserver<KBucket> (){
             @Override
@@ -91,11 +112,21 @@ public class DistributedClient {
             @Override
             public void onError(Throwable t) {
                 System.out.println("Não respondeu!");
+                try {
+                    closeConnection(channel);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             @Override
             public void onCompleted() {
                 System.out.println("Acabou com sucesso");
+                try {
+                    closeConnection(channel);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
         };
         try {
@@ -109,7 +140,7 @@ public class DistributedClient {
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }
     }
-    public void storeValue(TripleNode node, String key, byte[] value){
+    public void storeValue(TripleNode node, String key, byte[] value) throws InterruptedException {
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Empty> responseObserver = new StreamObserver<Empty> (){
             @Override
@@ -120,10 +151,19 @@ public class DistributedClient {
             @Override
             public void onError(Throwable t) {
                 System.out.println("Value not stored, peer must be down");
+                try {
+                    closeConnection(channel);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             @Override
-            public void onCompleted() {
+            public void onCompleted() {try {
+                closeConnection(channel);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             }
         };
         try {
@@ -132,6 +172,52 @@ public class DistributedClient {
                     .setValue(ByteString.copyFrom(value))
                     .build();
             asyncStub.store(data,responseObserver);
+        } catch(StatusRuntimeException e){
+            logger.info("RPC failed: {0}"+ e.getStatus()+"!");
+        }
+    }
+    public void findValue(List<TripleNode> list,TripleNode node, String key) throws InterruptedException {
+        Node n = this.node;
+        P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
+        StreamObserver<Found> responseObserver = new StreamObserver<Found> (){
+            @Override
+            public void onNext(Found value) {
+                if(value.getFound()){
+                    n.getData().put(key, value.getValue().toByteArray());
+                }
+                else {
+                    KBucket kBucket =  value.getKBucket();
+                    TripleNode newNode = new TripleNode(kBucket.getNodeId(), kBucket.getIp(), kBucket.getPort());
+                    list.add(newNode);
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                System.out.println("Não respondeu!");
+                try {
+                    closeConnection(channel);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            @Override
+            public void onCompleted() {
+                try {
+                    closeConnection(channel);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+        try {
+            Ping ping = Ping.newBuilder()
+                    .setNodeId(key)
+                    .setIp(node.getIp())
+                    .setPort(node.getPort())
+                    .build();
+            asyncStub.findValue(ping,responseObserver);
         } catch(StatusRuntimeException e){
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }

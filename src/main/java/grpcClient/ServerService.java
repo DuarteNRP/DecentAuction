@@ -1,6 +1,7 @@
 package grpcClient;
 
 import ServiceGRPC.*;
+import com.google.protobuf.ByteString;
 import crypto.Crypto;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -12,6 +13,7 @@ import lombok.Setter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 @Setter
@@ -103,25 +105,39 @@ public class ServerService{
         }
 
         @Override
-        public void findValue(Ping request, StreamObserver<KBucket> responseObserver) {
+        public void findValue(Ping request, StreamObserver<Found> responseObserver) {
             TripleNode tripleNode = new TripleNode(request.getNodeId(), request.getIp(), request.getPort());
-            //var result = this.node.data.get(crypto)
-            ArrayList<TripleNode> kClosestNodes = this.node.findKClosestNodes(tripleNode);
-            for(TripleNode t : kClosestNodes){
+            if(this.node.getData().containsKey(request.getNodeId())){
                 responseObserver.onNext(
-                        KBucket.newBuilder()
-                                .setNodeId(t.getNodeId())
-                                .setIp(t.getIp())
-                                .setPort(t.getPort())
+                        Found.newBuilder()
+                                .setFound(true)
+                                .setValue(ByteString.copyFrom(this.node.getData().get(request.getNodeId())))
+                                .setKBucket(KBucket.getDefaultInstance())
                                 .build()
                 );
+            }
+            else {
+                ArrayList<TripleNode> kClosestNodes = this.node.findKClosestNodes(tripleNode);
+                for (TripleNode t : kClosestNodes) {
+                    KBucket kbucket = KBucket.newBuilder()
+                            .setNodeId(t.getNodeId())
+                            .setIp(t.getIp())
+                            .setPort(t.getPort())
+                            .build();
+                    responseObserver.onNext(
+                            Found.newBuilder()
+                                    .setFound(false)
+                                    .setValue(ByteString.EMPTY)
+                                    .setKBucket(kbucket)
+                                    .build()
+                    );
+                }
             }
             responseObserver.onCompleted();
         }
 
         @Override
         public void store(Data request, StreamObserver<Empty> responseObserver) {
-            System.out.println(this.node.getNode().getNodeId()+" , "+this.node.getNode().getIp() + " , "+this.node.getNode().getPort());
             this.node.data.put(request.getKey(),request.getValue().toByteArray());
             responseObserver.onNext(Empty.newBuilder().build());
             responseObserver.onCompleted();

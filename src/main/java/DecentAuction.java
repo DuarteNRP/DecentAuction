@@ -1,3 +1,4 @@
+import com.google.protobuf.ByteString;
 import config.Constraints;
 import config.Utils;
 import crypto.Crypto;
@@ -26,12 +27,14 @@ public class DecentAuction {
         Node node = serverService1.getServiceNode();
         Node node1 = serverService2.getServiceNode();
         TripleNode testTripleNode = serverService2.getServiceTripleNode();
-        //test.testTryAddNode(node);
-        //test.testTryAddNode(node1);
+        node.tryToAddNode(testTripleNode);
+        test.testTryAddNode(node);
+        test.testTryAddNode(node1);
         //test.testFindKClosest(node,serverService2.getServiceTripleNode());
         //test.testPing(node,testTripleNode);
         //test.testFindNodes(node,testTripleNode);
         test.testStore(node,testTripleNode,node1);
+        test.testFindValue(node,testTripleNode);
         serverService1.blockUntilShutdown();
         serverService2.blockUntilShutdown();
     }
@@ -79,12 +82,20 @@ public class DecentAuction {
         System.out.println(foundNodes);
     }
     public void testStore(Node node,TripleNode target,Node targetNode) throws InterruptedException {
-        String key = "hashString";
         byte[] value = "block data".getBytes();
-        node.store(target,key,value);
+        node.store(target,target.getNodeId(),value);
         //wait to insert value
         Thread.sleep(2000);
-        System.out.println("Value inserted an it is: "+ new String(targetNode.getData().get(key)));
-        System.out.println("Original node doesn't contain value: "+ node.data.contains(key));
+        System.out.println("Value inserted an it is: "+ new String(targetNode.getData().get(target.getNodeId())));
+        System.out.println("Guardado no nó: "+target.getNodeId());
+    }
+    public void testFindValue(Node node,TripleNode target) throws InterruptedException {
+        byte[] value = node.findValue(target.getNodeId());
+        if(value!=null){
+            System.out.println("Value founded and it is: "+new String(value));
+        }
+        else{
+            System.out.println("Didn't find value");
+        }
     }
 }

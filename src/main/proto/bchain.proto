@@ -8,7 +8,7 @@ option objc_class_prefix = "HLW";
 service P2PService {
     rpc ping(Ping) returns (Ping){}
     rpc findNode(Ping) returns (stream KBucket) {}
-    rpc findValue(Ping) returns (stream KBucket) {}
+    rpc findValue(Ping) returns (stream Found) {}
     rpc store(Data) returns (Empty) {}
 }
 //provavelmente vão mudar os atributos de cada tipo, passar por exemplo para bytes
@@ -26,8 +26,12 @@ message KBucket{
     string ip = 2;
     int32 port = 3;
 }
-
+message Found{
+    bool found =1;
+    bytes Value = 2;
+    KBucket kBucket =3;
+}
 message Data{
     string key = 1;
-    bytes value = 5;
+    bytes value = 2;
 }
