@@ -1,8 +1,7 @@
 package grpcClient;
 
-import ServiceGRPC.KBucket;
-import ServiceGRPC.P2PServiceGrpc;
-import ServiceGRPC.Ping;
+import ServiceGRPC.*;
+import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
@@ -79,7 +78,6 @@ public class DistributedClient {
 
     }
     public void findNode(List<TripleNode> list,TripleNode node,TripleNode target){
-        List<TripleNode> tripleNodes = Collections.synchronizedList(new ArrayList<>());
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<KBucket> responseObserver = new StreamObserver<KBucket> (){
             @Override
@@ -107,6 +105,33 @@ public class DistributedClient {
                     .setPort(target.getPort())
                     .build();
             asyncStub.findNode(ping,responseObserver);
+        } catch(StatusRuntimeException e){
+            logger.info("RPC failed: {0}"+ e.getStatus()+"!");
+        }
+    }
+    public void storeValue(TripleNode node, String key, byte[] value){
+        P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
+        StreamObserver<Empty> responseObserver = new StreamObserver<Empty> (){
+            @Override
+            public void onNext(Empty value) {
+                System.out.println("Value Stored");
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                System.out.println("Value not stored, peer must be down");
+            }
+
+            @Override
+            public void onCompleted() {
+            }
+        };
+        try {
+            Data data = Data.newBuilder()
+                    .setKey(key)
+                    .setValue(ByteString.copyFrom(value))
+                    .build();
+            asyncStub.store(data,responseObserver);
         } catch(StatusRuntimeException e){
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }

@@ -1,6 +1,7 @@
 package kademlia;
 import java.net.InetAddress;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -17,7 +18,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @Getter
 @Setter
 public class Node{
-    public Map<String,byte[]> data;
+    public ConcurrentHashMap<String,byte[]> data;
     public RoutingTable routingtable;
     private static final Crypto crypto = new Crypto();
     private static final Utils utils = new Utils();
@@ -32,7 +33,7 @@ public class Node{
         this.node=node;
         this.nodeId=node.getNodeId();
         this.routingtable = new RoutingTable(node);
-        this.data = new HashMap<>();
+        this.data = new ConcurrentHashMap<>();
     }
     public String getHash() {
         return crypto.hash(this.toString());
@@ -269,5 +270,8 @@ public class Node{
             return new ArrayList<TripleNode>( finalKClosestNodes.subList(0,constraints.K));
         }
         return new ArrayList<>(finalKClosestNodes);
+    }
+    public void store(TripleNode target,String key,byte[] value){
+        distributedClient.storeValue(target,key,value);
     }
 }

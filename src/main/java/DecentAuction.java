@@ -26,15 +26,14 @@ public class DecentAuction {
         Node node = serverService1.getServiceNode();
         Node node1 = serverService2.getServiceNode();
         TripleNode testTripleNode = serverService2.getServiceTripleNode();
-        test.testTryAddNode(node);
-        test.testTryAddNode(node1);
+        //test.testTryAddNode(node);
+        //test.testTryAddNode(node1);
         //test.testFindKClosest(node,serverService2.getServiceTripleNode());
         //test.testPing(node,testTripleNode);
-        test.testFindNodes(node,testTripleNode);
+        //test.testFindNodes(node,testTripleNode);
+        test.testStore(node,testTripleNode,node1);
         serverService1.blockUntilShutdown();
         serverService2.blockUntilShutdown();
-
-
     }
     public void testTryAddNode(Node node){
         TripleNode tripleNode1 =new TripleNode("localhost",50001);
@@ -78,5 +77,14 @@ public class DecentAuction {
         ArrayList<TripleNode> foundNodes = node.findNode(tripleNode);
         System.out.println("pritn kclosestnodes");
         System.out.println(foundNodes);
+    }
+    public void testStore(Node node,TripleNode target,Node targetNode) throws InterruptedException {
+        String key = "hashString";
+        byte[] value = "block data".getBytes();
+        node.store(target,key,value);
+        //wait to insert value
+        Thread.sleep(2000);
+        System.out.println("Value inserted an it is: "+ new String(targetNode.getData().get(key)));
+        System.out.println("Original node doesn't contain value: "+ node.data.contains(key));
     }
 }

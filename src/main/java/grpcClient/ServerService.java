@@ -121,7 +121,10 @@ public class ServerService{
 
         @Override
         public void store(Data request, StreamObserver<Empty> responseObserver) {
-
+            System.out.println(this.node.getNode().getNodeId()+" , "+this.node.getNode().getIp() + " , "+this.node.getNode().getPort());
+            this.node.data.put(request.getKey(),request.getValue().toByteArray());
+            responseObserver.onNext(Empty.newBuilder().build());
+            responseObserver.onCompleted();
         }
     }
 }

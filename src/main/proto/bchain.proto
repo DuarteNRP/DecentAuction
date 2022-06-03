@@ -17,7 +17,7 @@ message Empty{
 
 message Ping{
     string nodeId = 1;
-    string ip =2;
+    string ip=2;
     int32 port=3;
 }
 
@@ -28,9 +28,6 @@ message KBucket{
 }
 
 message Data{
-    string nodeId = 1;
-    string ip = 2;
-    int32 port = 3;
-    string key = 4;
+    string key = 1;
     bytes value = 5;
 }
