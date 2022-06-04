@@ -10,7 +10,7 @@ public class Message<T>{
     private T payload;
 
     Message(){}
-    Message(String topic, T payload){
+    public Message(String topic, T payload){
         this.topic = topic;
         this.payload = payload;
     }

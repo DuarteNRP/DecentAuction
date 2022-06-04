@@ -12,6 +12,7 @@ import crypto.Crypto;
 import lombok.Getter;
 import lombok.Setter;
 import grpcClient.DistributedClient;
+import pubsubAuction.*;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -29,6 +30,11 @@ public class Node{
     private int port;
     private TripleNode node;
     private DistributedClient distributedClient;
+    private Publisher pub = new Publisher(this);
+    private Subscriber sub = new Subscriber(this);
+
+    //TODO tem de ser o mesmo que a blockchain
+    public Service auctionHouse = new Service();
     public Node(TripleNode node){
         this.node=node;
         this.nodeId=node.getNodeId();
@@ -293,5 +299,54 @@ public class Node{
             return this.getData().get(key);
         }
         return null;
+    }
+
+    //TODO
+    //auction
+    public void startNewAuction(ArrayList<Item> items){
+        //TODO fix name
+        String topic = "hashthis";
+        Auction auction = new Auction(this, items);
+        auctionHouse.setAuction(topic, auction);
+        Message message = new Message(topic, auction);
+
+        pub.publish(message, auctionHouse);
+        sub.subscribe(topic, auctionHouse);
+
+        //TODO
+        //broadcast to everyone
+    }
+
+    public void makeBid(String topic, Item item, int value){
+        Message message = new Message(topic, node+" just made a bid for item "+item);
+
+        sub.subscribe(topic, auctionHouse);
+        Auction auction = auctionHouse.getAuction(topic);
+        auction.bid(this, item, value);
+        auctionHouse.setAuction(topic, auction);
+        pub.publish(message, auctionHouse);
+
+        //TODO
+        //broadcast to subsribers
+        auctionHouse.broadcast();
+    }
+
+    void closeAuction(String topic){
+        Auction auction = auctionHouse.getAuction(topic);
+
+        Map<String, Bid> winners = auction.finish();
+        for(String item : winners.keySet()){
+            Bid bid = winners.get(item);
+            String result = bid.getBidder()+" won item "+bid.getItem();
+            Message message = new Message(topic, result);
+            pub.publish(message, auctionHouse);
+        }
+
+        auctionHouse.close(auction);
+
+        //TODO
+        //boradcast to subscribers
+        //commit to blockchain
+        auctionHouse.broadcast();
     }
 }
