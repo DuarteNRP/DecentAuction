@@ -1,9 +1,11 @@
 package pubsubAuction;
 
+import kademlia.Node;
+
 import java.io.*;
 import java.util.*;
 
-class Bid{
+public class Bid{
 
     private Node bidder;
     private Item item;

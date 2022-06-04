@@ -1,9 +1,11 @@
 package pubsubAuction;
 
+import kademlia.Node;
+
 import java.io.*;
 import java.util.*;
 
-class Publisher{
+public class Publisher{
     private Node node;
 
     public Publisher(Node node){this.node = node;}
