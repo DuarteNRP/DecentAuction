@@ -1,11 +1,12 @@
 package crypto;
 
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Base64;
 
-public class Crypto{
+public class Crypto implements Serializable {
 
     public static String getHexString(byte[] arr) {
         return new BigInteger(arr).toString(16).toUpperCase(); }

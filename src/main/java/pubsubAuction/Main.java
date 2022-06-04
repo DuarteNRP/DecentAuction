@@ -2,9 +2,9 @@ package pubsubAuction;
 
 import java.io.*;
 import java.util.*;
-import kademlia.Node;
+//import kademlia.Node;
 
-/*class Node{
+class Node{
     private String nodeId;
     private Publisher pub = new Publisher(this);
     private Subscriber sub = new Subscriber(this);
@@ -18,7 +18,7 @@ import kademlia.Node;
     public void publish(Message message, Service service){pub.publish(message, service);}
     public void subscribe(String topic, Service service){sub.subscribe(topic, service);}
     public void printSubscribedMessages(){sub.printMessages();}
-}*/
+}
 
 
 public class Main{
@@ -32,7 +32,7 @@ public class Main{
 	//person 4 is playing fortnite instead
 
 	//hastable is placeholder for Kademlia HDT
-	/*Handler fakedemlia = new Handler();
+	Handler fakedemlia = new Handler();
 
 	//make 5 people
 	Node p1 = new Node("0");
@@ -67,6 +67,6 @@ public class Main{
 	fakedemlia.makeBid(p4, "hashthis", i3, 42);
 
 	System.out.println("====FINAL RESULTS====");
-	fakedemlia.closeAuction(p1, "hashthis");*/
+	fakedemlia.closeAuction(p1, "hashthis");
     }
 }

@@ -2,6 +2,9 @@ package grpcClient;
 
 import ServiceGRPC.*;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import config.Constraints;
+import config.Utils;
 import crypto.Crypto;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -71,7 +74,9 @@ public class ServerService{
     }
 
     static class ServerServiceImpl extends P2PServiceGrpc.P2PServiceImplBase {
-        //public final Crypto crypto = new
+        private static final Crypto crypto = new Crypto();
+        private static final Utils utils = new Utils();
+        private static final Constraints constraints = new Constraints();
         String ip;
         int port;
         Node node;
@@ -89,8 +94,8 @@ public class ServerService{
 
         @Override
         public void findNode(Ping request, StreamObserver<KBucket> responseObserver) {
-            System.out.println("find node do nó: "+request.getNodeId()+" em: "+this.node.getNodeId());
             TripleNode tripleNode = new TripleNode(request.getNodeId(), request.getIp(), request.getPort());
+            this.node.tryToAddNode(tripleNode);
             ArrayList<TripleNode> kClosestNodes = this.node.findKClosestNodes(tripleNode);
             for(TripleNode t : kClosestNodes){
                 responseObserver.onNext(
@@ -107,12 +112,18 @@ public class ServerService{
         @Override
         public void findValue(Ping request, StreamObserver<Found> responseObserver) {
             TripleNode tripleNode = new TripleNode(request.getNodeId(), request.getIp(), request.getPort());
+            this.node.tryToAddNode(tripleNode);
             if(this.node.getData().containsKey(request.getNodeId())){
+                KBucket kbucket = KBucket.newBuilder()
+                        .setNodeId(this.node.getNode().getNodeId())
+                        .setIp(this.node.getNode().getIp())
+                        .setPort(this.node.getNode().getPort())
+                        .build();
                 responseObserver.onNext(
                         Found.newBuilder()
                                 .setFound(true)
                                 .setValue(ByteString.copyFrom(this.node.getData().get(request.getNodeId())))
-                                .setKBucket(KBucket.getDefaultInstance())
+                                .setKBucket(kbucket)
                                 .build()
                 );
             }
@@ -139,8 +150,41 @@ public class ServerService{
         @Override
         public void store(Data request, StreamObserver<Empty> responseObserver) {
             this.node.data.put(request.getKey(),request.getValue().toByteArray());
+            TripleNode tripleNode = new TripleNode(request.getPing().getNodeId(), request.getPing().getIp(), request.getPing().getPort());
+            this.node.tryToAddNode(tripleNode);
             responseObserver.onNext(Empty.newBuilder().build());
             responseObserver.onCompleted();
+        }
+
+        @Override
+        public void broadcast(BlockData request, StreamObserver<Empty> responseObserver) {
+            myBlockchain.Transaction t;
+            myBlockchain.Block b;
+            myBlockchain.Chain c;
+            try {
+                if(request.getDatatype()==DataType.BLOCK) {
+                    b = (myBlockchain.Block) utils.deserialize(request.getData().toByteArray());
+                    this.node.setBlock(b);
+                    System.out.println("Guardou bloco em:" +this.node.getNodeId());
+                }
+                else if(request.getDatatype()==DataType.TRANSACTION) {
+                    t = (myBlockchain.Transaction) utils.deserialize(request.getData().toByteArray());
+                    this.node.setTransaction(t);
+                    System.out.println("Guardou transaçao em:" +this.node.getNodeId());
+                }
+                else if(request.getDatatype()==DataType.BLOCKCHAIN) {
+                    c = (myBlockchain.Chain) utils.deserialize(request.getData().toByteArray());
+                    this.node.setBlockChain(c);
+                    System.out.println("Guardou blockchain em:" +this.node.getNodeId());
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+            responseObserver.onNext(Empty.newBuilder().build());
+            responseObserver.onCompleted();
+
         }
     }
 }

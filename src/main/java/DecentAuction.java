@@ -1,3 +1,4 @@
+import ServiceGRPC.DataType;
 import com.google.protobuf.ByteString;
 import config.Constraints;
 import config.Utils;
@@ -8,35 +9,75 @@ import kademlia.BinaryTreeNode;
 import kademlia.Bucket;
 import kademlia.Node;
 import kademlia.TripleNode;
+import myBlockchain.Transaction;
+import myBlockchain.Wallet;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Random;
 
 public class DecentAuction {
     private static final Utils utils = new Utils();
     private static final Crypto cripto = new Crypto();
     private static final Constraints constraints = new Constraints();
-    static final ServerService serverService1 = new ServerService("localhost",50000);
-    static final ServerService serverService2 = new ServerService("localhost",50001);
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static ArrayList<ServerService> bootstrapNodes = new ArrayList<>();
+    static final ServerService serverService1 = new ServerService("localhost",50005);
+    static final ServerService serverService2 = new ServerService("localhost",50006);
+    public static void main(String[] args) throws IOException, InterruptedException, NoSuchAlgorithmException {
         //test kademlia buckets
         DecentAuction test = new DecentAuction();
+        test.initializeBootstrapNodes();
         serverService1.start();
         serverService2.start();
         Node node = serverService1.getServiceNode();
+        test.join(node);
         Node node1 = serverService2.getServiceNode();
-        TripleNode testTripleNode = serverService2.getServiceTripleNode();
+        TripleNode testTripleNode = bootstrapNodes.get(0).getServiceTripleNode();
+        test.join(node1);
         node.tryToAddNode(testTripleNode);
-        test.testTryAddNode(node);
-        test.testTryAddNode(node1);
+        test.testSendTransaction(node,testTripleNode,bootstrapNodes.get(0).getServiceNode());
+        //test.testTryAddNode(node);
+        //test.testTryAddNode(node1);
         //test.testFindKClosest(node,serverService2.getServiceTripleNode());
         //test.testPing(node,testTripleNode);
         //test.testFindNodes(node,testTripleNode);
-        test.testStore(node,testTripleNode,node1);
-        test.testFindValue(node,testTripleNode);
+        //test.testStore(node,testTripleNode,bootstrapNodes.get(0).getServiceNode());
+        //test.testFindValue(node,testTripleNode);
         serverService1.blockUntilShutdown();
         serverService2.blockUntilShutdown();
+        finalizeBootstrapNodes();
+    }
+    public static void initializeBootstrapNodes() throws IOException {
+        //5 nodes to mitigate eclipse attack
+        for(int i=0;i<5;i++){
+            bootstrapNodes.add(new ServerService("localhost",5000+i));
+            bootstrapNodes.get(i).start();
+        }
+        for(int i=0;i<5;i++){
+            for(int j=0;j<5;j++){
+                bootstrapNodes.get(i).getServiceNode().tryToAddNode(bootstrapNodes.get(j).getServiceTripleNode());
+            }
+        }
+        for(int i=0;i<5;i++){
+            bootstrapNodes.get(i).getServiceNode().printRouteTable();
+        }
+    }
+    public static void finalizeBootstrapNodes() throws InterruptedException {
+        //5 nodes to mitigate eclipse attack
+        for(int i=0;i<5;i++){
+            bootstrapNodes.get(i).blockUntilShutdown();
+        }
+    }
+    public static void join(Node node) throws InterruptedException {
+        Random generator = new Random();
+        int random = generator.nextInt(5);
+        System.out.println("Escolheu nó " + random + " como bootstrap: ");
+        node.tryToAddNode(bootstrapNodes.get(random).getServiceTripleNode());
+        node.printRouteTable();
+        node.findNode(node.getNode());
+        node.printRouteTable();
     }
     public void testTryAddNode(Node node){
         TripleNode tripleNode1 =new TripleNode("localhost",50001);
@@ -87,7 +128,6 @@ public class DecentAuction {
         //wait to insert value
         Thread.sleep(2000);
         System.out.println("Value inserted an it is: "+ new String(targetNode.getData().get(target.getNodeId())));
-        System.out.println("Guardado no nó: "+target.getNodeId());
     }
     public void testFindValue(Node node,TripleNode target) throws InterruptedException {
         byte[] value = node.findValue(target.getNodeId());
@@ -97,5 +137,15 @@ public class DecentAuction {
         else{
             System.out.println("Didn't find value");
         }
+    }
+    public void testSendTransaction(Node n,TripleNode target,Node targetNode) throws NoSuchAlgorithmException, InterruptedException {
+        Wallet coinbase = new Wallet();
+        Transaction transaction = new Transaction(coinbase.publicKey, coinbase.publicKey,100,null);
+        System.out.println(n.getTransaction());
+        System.out.println(targetNode.getTransaction());
+        n.sendData(target,transaction, DataType.TRANSACTION);
+        Thread.sleep(1000);
+        if(targetNode.getTransaction()!=null)
+            System.out.println(targetNode.getTransaction().amount);
     }
 }

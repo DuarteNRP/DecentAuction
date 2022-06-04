@@ -3,11 +3,12 @@ package myBlockchain;
 import config.Utils;
 import crypto.Crypto;
 
+import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
 
-public class Transaction {
+public class Transaction implements Serializable {
     Crypto crypto = new Crypto();
     public String transactionId;
     public PublicKey sender;
