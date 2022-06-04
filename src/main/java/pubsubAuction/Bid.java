@@ -1,17 +1,19 @@
 package pubsubAuction;
 
 import kademlia.Node;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.*;
 import java.util.*;
+@Getter
+@Setter
+public class Bid implements Serializable{
 
-public class Bid{
-
-    private Node bidder;
+    private String bidder;
     private Item item;
     private int bid;
 
-    public Node getBidder(){return bidder;}
 
     public Item getItem(){return item;}
 
@@ -22,7 +24,7 @@ public class Bid{
     Bid(int bid){this.bid = bid;}
 
     Bid(Node bidder, Item item, int bid){
-	this.bidder = bidder;
+	this.bidder = bidder.getNodeId();
 	this.item = item;
 	this.bid = bid;
     }

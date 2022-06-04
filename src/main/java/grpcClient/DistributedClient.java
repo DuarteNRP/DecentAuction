@@ -238,7 +238,7 @@ public class DistributedClient {
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }
     }
-    public void sendTransaction(myBlockchain.Transaction transaction, TripleNode node, DataType datatype){
+    public void sendData(byte[] arr, TripleNode node, DataType datatype){
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Empty> responseObserver = new StreamObserver<Empty> (){
             @Override
@@ -266,15 +266,13 @@ public class DistributedClient {
         };
        try {
             BlockData transaction1 = BlockData.newBuilder()
-                    .setData(ByteString.copyFrom(utils.serialize(transaction)))
+                    .setData(ByteString.copyFrom(arr))
                     .setDatatype(datatype)
                     .build();
 
             asyncStub.broadcast(transaction1,responseObserver);
         } catch(StatusRuntimeException e){
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
-        } catch (IOException e) {
-           throw new RuntimeException(e);
        }
     }
 }

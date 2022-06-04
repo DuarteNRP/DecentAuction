@@ -11,11 +11,13 @@ import kademlia.Node;
 import kademlia.TripleNode;
 import myBlockchain.Transaction;
 import myBlockchain.Wallet;
+import pubsubAuction.Item;
 
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class DecentAuction {
@@ -28,16 +30,17 @@ public class DecentAuction {
     public static void main(String[] args) throws IOException, InterruptedException, NoSuchAlgorithmException {
         //test kademlia buckets
         DecentAuction test = new DecentAuction();
-        test.initializeBootstrapNodes();
+        //test.initializeBootstrapNodes();
         serverService1.start();
         serverService2.start();
         Node node = serverService1.getServiceNode();
-        test.join(node);
+        //test.join(node);
         Node node1 = serverService2.getServiceNode();
-        TripleNode testTripleNode = bootstrapNodes.get(0).getServiceTripleNode();
-        test.join(node1);
+        TripleNode testTripleNode = node1.getNode();
+        //test.join(node1);
         node.tryToAddNode(testTripleNode);
-        test.testSendTransaction(node,testTripleNode,bootstrapNodes.get(0).getServiceNode());
+        //test.testSendTransaction(node,testTripleNode,bootstrapNodes.get(0).getServiceNode());
+        test.testSimpleAuction(node,testTripleNode,node1);
         //test.testTryAddNode(node);
         //test.testTryAddNode(node1);
         //test.testFindKClosest(node,serverService2.getServiceTripleNode());
@@ -47,7 +50,7 @@ public class DecentAuction {
         //test.testFindValue(node,testTripleNode);
         serverService1.blockUntilShutdown();
         serverService2.blockUntilShutdown();
-        finalizeBootstrapNodes();
+        //finalizeBootstrapNodes();
     }
     public static void initializeBootstrapNodes() throws IOException {
         //5 nodes to mitigate eclipse attack
@@ -138,7 +141,7 @@ public class DecentAuction {
             System.out.println("Didn't find value");
         }
     }
-    public void testSendTransaction(Node n,TripleNode target,Node targetNode) throws NoSuchAlgorithmException, InterruptedException {
+    public void testSendTransaction(Node n,TripleNode target,Node targetNode) throws NoSuchAlgorithmException, InterruptedException, IOException {
         Wallet coinbase = new Wallet();
         Transaction transaction = new Transaction(coinbase.publicKey, coinbase.publicKey,100,null);
         System.out.println(n.getTransaction());
@@ -147,5 +150,22 @@ public class DecentAuction {
         Thread.sleep(1000);
         if(targetNode.getTransaction()!=null)
             System.out.println(targetNode.getTransaction().amount);
+    }
+    public void testSimpleAuction(Node n,TripleNode target,Node targetNode) throws IOException, InterruptedException {
+        Item item = new Item("first Item");
+        ArrayList<Item> list = new ArrayList<>();
+        list.add(item);
+        list.add(new Item("Second Item"));
+        n.startNewAuction(list,target);
+        Thread.sleep(1000);
+        System.out.println(targetNode.getAuctionHouse().getOpenAuctions().get("hashthis"));
+        targetNode.makeBid("hashthis",targetNode.getAuctionHouse().getOpenAuctions().get("hashthis").getItems().get(0),100,n.getNode());
+        Thread.sleep(1000);
+        n.closeAuction("hashthis",target);
+        Thread.sleep(1000);
+        n.getAuctionHouse().getMessagesOfTopic("hashthis",n.getSub());
+        targetNode.getAuctionHouse().getMessagesOfTopic("hashthis",targetNode.getSub());
+        System.out.println(n.getAuctionHouse().getOpenAuctions());
+        System.out.println(targetNode.getAuctionHouse().getOpenAuctions());
     }
 }

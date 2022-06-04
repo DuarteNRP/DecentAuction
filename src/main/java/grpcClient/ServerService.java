@@ -13,6 +13,8 @@ import kademlia.Node;
 import kademlia.TripleNode;
 import lombok.Getter;
 import lombok.Setter;
+import pubsubAuction.Auction;
+import pubsubAuction.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -161,6 +163,7 @@ public class ServerService{
             myBlockchain.Transaction t;
             myBlockchain.Block b;
             myBlockchain.Chain c;
+            Service service;
             try {
                 if(request.getDatatype()==DataType.BLOCK) {
                     b = (myBlockchain.Block) utils.deserialize(request.getData().toByteArray());
@@ -176,6 +179,11 @@ public class ServerService{
                     c = (myBlockchain.Chain) utils.deserialize(request.getData().toByteArray());
                     this.node.setBlockChain(c);
                     System.out.println("Guardou blockchain em:" +this.node.getNodeId());
+                }
+                else if(request.getDatatype()==DataType.AUCTION){
+                    service = (Service) utils.deserialize(request.getData().toByteArray());
+                    this.node.setAuctionHouse(service);
+                    this.node.getAuctionHouse().broadcast();
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);

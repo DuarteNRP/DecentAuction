@@ -1,4 +1,6 @@
 package kademlia;
+import java.io.IOException;
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,7 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Getter
 @Setter
-public class Node{
+public class Node implements Serializable {
     public ConcurrentHashMap<String,byte[]> data;
     public Transaction transaction = null;
     public Block block = null;
@@ -310,27 +312,31 @@ public class Node{
         }
         return null;
     }
-    public void sendData(TripleNode tripleNode, Transaction transaction, DataType datatype){
-        distributedClient.sendTransaction(transaction,tripleNode,datatype);
+    public void sendData(TripleNode tripleNode, Transaction transaction, DataType datatype) throws IOException {
+        distributedClient.sendData(utils.serialize(transaction),tripleNode,datatype);
     }
 
     //TODO
     //auction
-    public void startNewAuction(ArrayList<Item> items){
+    public void startNewAuction(ArrayList<Item> items,TripleNode target) throws IOException {
         //TODO fix name
         String topic = "hashthis";
         Auction auction = new Auction(this, items);
+        System.out.println("node: "+auctionHouse.getOpenAuctions().size());
         auctionHouse.setAuction(topic, auction);
+        System.out.println("node: "+auctionHouse.getOpenAuctions().get(0));
         Message message = new Message(topic, auction);
 
         pub.publish(message, auctionHouse);
         sub.subscribe(topic, auctionHouse);
 
         //TODO
+        auctionHouse.broadcast();
+        this.distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION);
         //broadcast to everyone
     }
 
-    public void makeBid(String topic, Item item, int value){
+    public void makeBid(String topic, Item item, int value,TripleNode target) throws IOException {
         Message message = new Message(topic, node+" just made a bid for item "+item);
 
         sub.subscribe(topic, auctionHouse);
@@ -342,9 +348,10 @@ public class Node{
         //TODO
         //broadcast to subsribers
         auctionHouse.broadcast();
+        distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION);
     }
 
-    void closeAuction(String topic){
+    public void closeAuction(String topic,TripleNode target) throws IOException {
         Auction auction = auctionHouse.getAuction(topic);
 
         Map<String, Bid> winners = auction.finish();
@@ -361,5 +368,6 @@ public class Node{
         //boradcast to subscribers
         //commit to blockchain
         auctionHouse.broadcast();
+        distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION);
     }
 }

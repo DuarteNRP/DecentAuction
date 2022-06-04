@@ -3,11 +3,11 @@ package pubsubAuction;
 import java.io.*;
 import java.util.*;
 
-public class Item{
+public class Item implements Serializable{
 
     private String itemID;
 
-    Item(String itemID){this.itemID=itemID;}
+    public Item(String itemID){this.itemID=itemID;}
 
     public String getItemID(){return itemID;}
 

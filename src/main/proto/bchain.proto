@@ -41,6 +41,7 @@ enum DataType{
     TRANSACTION = 0;
     BLOCK = 1;
     BLOCKCHAIN = 2;
+    AUCTION = 3;
 }
 message BlockData{
     bytes data = 1;

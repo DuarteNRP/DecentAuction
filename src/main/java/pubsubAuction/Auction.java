@@ -1,24 +1,26 @@
 package pubsubAuction;
 
 import kademlia.Node;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.*;
 import java.util.*;
+@Getter
+@Setter
+public class Auction implements Serializable{
 
-public class Auction{
-
-    private Node owner;
+    private String owner;
     private ArrayList<Item> items;
     private List<Bid> bids = new LinkedList<>();
 
-    public Node getOwner(){return owner;}
 
     public ArrayList<Item> getItems(){return items;}
 
     public List<Bid> getBids(){return bids;}
 
     public Auction(Node owner, ArrayList<Item> items){
-	this.owner = owner;
+	this.owner = owner.getNodeId();
 	this.items = items;
     }
 

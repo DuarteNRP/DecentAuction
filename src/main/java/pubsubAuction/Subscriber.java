@@ -5,13 +5,13 @@ import kademlia.Node;
 import java.io.*;
 import java.util.*;
 
-public class Subscriber{
+public class Subscriber implements Serializable{
 
-    private Node node;
+    private String nodeId;
 
     private List<Message> messages = new LinkedList<>();
 
-    public Subscriber(Node node){this.node = node;}
+    public Subscriber(Node node){this.nodeId = node.getNodeId();}
 
     public List<Message> getMessages(){return messages;}
 
@@ -28,7 +28,7 @@ public class Subscriber{
 	service.getMessagesOfTopic(topic, this);}
 
     public void printMessages(){
-	System.out.println(node.getNodeId()+": ");
+	System.out.println(this.nodeId+": ");
 	if(messages.size() == 0)
 	    System.out.println("No messages");
 	else

@@ -4,7 +4,7 @@ import java.io.*;
 import java.util.*;
 
 //wrapper containing auction data
-public class Message<T>{
+public class Message<T> implements Serializable{
 
     private String topic;
     private T payload;

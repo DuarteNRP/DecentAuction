@@ -5,10 +5,10 @@ import kademlia.Node;
 import java.io.*;
 import java.util.*;
 
-public class Publisher{
-    private Node node;
+public class Publisher implements Serializable{
+    private String nodeId;
 
-    public Publisher(Node node){this.node = node;}
+    public Publisher(Node node){this.nodeId = node.getNodeId();}
 
     public void publish(Message message, Service service){service.addMessage(message);}
 }

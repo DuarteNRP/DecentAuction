@@ -1,10 +1,15 @@
 package pubsubAuction;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.*;
 import java.util.*;
 
 //service for handling publishing/subscribing and broadcasting
-public class Service{
+@Getter
+@Setter
+public class Service implements Serializable{
 
     //all messages keyed by topic -> subscribers
     private Map<String, Set<Subscriber>> topicMap = new HashMap<>();
