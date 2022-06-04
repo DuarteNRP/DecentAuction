@@ -3,7 +3,7 @@ package pubsubAuction;
 import java.io.*;
 import java.util.*;
 
-public class Item{
+class Item{
 
     private String itemID;
 

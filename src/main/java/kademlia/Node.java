@@ -6,13 +6,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import ServiceGRPC.DataType;
 import config.Constraints;
 import config.Utils;
 import crypto.Crypto;
 import lombok.Getter;
 import lombok.Setter;
 import grpcClient.DistributedClient;
-import pubsubAuction.*;
+import myBlockchain.*;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -20,6 +21,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @Setter
 public class Node{
     public ConcurrentHashMap<String,byte[]> data;
+    public Transaction transaction = null;
+    public Block block = null;
+    public Chain blockChain = null;
     public RoutingTable routingtable;
     private static final Crypto crypto = new Crypto();
     private static final Utils utils = new Utils();
@@ -30,11 +34,6 @@ public class Node{
     private int port;
     private TripleNode node;
     private DistributedClient distributedClient;
-    private Publisher pub = new Publisher(this);
-    private Subscriber sub = new Subscriber(this);
-
-    //TODO tem de ser o mesmo que a blockchain
-    public Service auctionHouse = new Service();
     public Node(TripleNode node){
         this.node=node;
         this.nodeId=node.getNodeId();
@@ -64,6 +63,8 @@ public class Node{
     public void tryToAddNode(TripleNode tripleNode){
         //System.out.println("Try to add node: "+tripleNode.getNodeId());
         //String binaryNodeId=utils.getBinaryFromHash(tripleNode.getNodeId());
+        if(tripleNode.getNodeId().equals(this.getNodeId()))
+            return;
         String binaryNodeId = tripleNode.getNodeId();
         BinaryTreeNode currentTreeNode = routingtable.getRootBinaryTreeNode();
         int bitCursor = 0;
@@ -195,6 +196,7 @@ public class Node{
         return closestNodes;
     }
     public void printRouteTable() {
+        System.out.println("Routing Table of Node: "+this.getNodeId());
         this.routingtable.printRouteTable();
 
     }
@@ -213,7 +215,7 @@ public class Node{
             System.out.println(closestNodes);
             System.out.println(kClosestNodes);
             parallelFindNode(kClosestNodes,closestNodes,visited,tripleNode);
-            Thread.sleep(1000);
+            Thread.sleep(5000);
             if(tripleNode.getIp().equals("") && this.getData().containsKey(tripleNode.getNodeId())){
                 break;
             }
@@ -224,7 +226,7 @@ public class Node{
         ArrayList<TripleNode> finalKClosestNodes = new ArrayList<>(kClosestNodes);
         utils.sortArrayList(finalKClosestNodes,tripleNode.getNodeId());
         if(finalKClosestNodes.size()>constraints.K){
-            return new ArrayList<TripleNode>( finalKClosestNodes.subList(0,constraints.K));
+            return new ArrayList<>(finalKClosestNodes.subList(0, constraints.K));
         }
         return new ArrayList<>(finalKClosestNodes);
     }
@@ -250,12 +252,14 @@ public class Node{
                             throw new RuntimeException(e);
                         }
                     }
-                    visited.add(tripleNode.getNodeId());
-                    kClosestNodes.add(tripleNode);
+                    if(!visited.contains(tripleNode.getNodeId())) {
+                        visited.add(tripleNode.getNodeId());
+                        kClosestNodes.add(tripleNode);
+                    }
                 }
             });
 
-            if(i==2) break;
+            if(i==constraints.ALPHA-1) break;
         }
         executor.shutdown();
         while(!executor.isTerminated()){}
@@ -288,7 +292,7 @@ public class Node{
         return new ArrayList<>(finalKClosestNodes);
     }
     public void store(TripleNode target,String key,byte[] value) throws InterruptedException {
-        distributedClient.storeValue(target,key,value);
+        distributedClient.storeValue(target,key,value,this.node);
     }
     public byte[] findValue(String key) throws InterruptedException {
         ArrayList<TripleNode> tripleNodes=this.findNode(new TripleNode(key,"",0));
@@ -300,53 +304,7 @@ public class Node{
         }
         return null;
     }
-
-    //TODO
-    //auction
-    public void startNewAuction(ArrayList<Item> items){
-        //TODO fix name
-        String topic = "hashthis";
-        Auction auction = new Auction(this, items);
-        auctionHouse.setAuction(topic, auction);
-        Message message = new Message(topic, auction);
-
-        pub.publish(message, auctionHouse);
-        sub.subscribe(topic, auctionHouse);
-
-        //TODO
-        //broadcast to everyone
-    }
-
-    public void makeBid(String topic, Item item, int value){
-        Message message = new Message(topic, node+" just made a bid for item "+item);
-
-        sub.subscribe(topic, auctionHouse);
-        Auction auction = auctionHouse.getAuction(topic);
-        auction.bid(this, item, value);
-        auctionHouse.setAuction(topic, auction);
-        pub.publish(message, auctionHouse);
-
-        //TODO
-        //broadcast to subsribers
-        auctionHouse.broadcast();
-    }
-
-    void closeAuction(String topic){
-        Auction auction = auctionHouse.getAuction(topic);
-
-        Map<String, Bid> winners = auction.finish();
-        for(String item : winners.keySet()){
-            Bid bid = winners.get(item);
-            String result = bid.getBidder()+" won item "+bid.getItem();
-            Message message = new Message(topic, result);
-            pub.publish(message, auctionHouse);
-        }
-
-        auctionHouse.close(auction);
-
-        //TODO
-        //boradcast to subscribers
-        //commit to blockchain
-        auctionHouse.broadcast();
+    public void sendData(TripleNode tripleNode, Transaction transaction, DataType datatype){
+        distributedClient.sendTransaction(transaction,tripleNode,datatype);
     }
 }

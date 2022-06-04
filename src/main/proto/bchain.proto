@@ -10,6 +10,7 @@ service P2PService {
     rpc findNode(Ping) returns (stream KBucket) {}
     rpc findValue(Ping) returns (stream Found) {}
     rpc store(Data) returns (Empty) {}
+    rpc broadcast(BlockData) returns (Empty){}
 }
 //provavelmente vão mudar os atributos de cada tipo, passar por exemplo para bytes
 message Empty{
@@ -34,4 +35,14 @@ message Found{
 message Data{
     string key = 1;
     bytes value = 2;
+    Ping ping = 3;
+}
+enum DataType{
+    TRANSACTION = 0;
+    BLOCK = 1;
+    BLOCKCHAIN = 2;
+}
+message BlockData{
+    bytes data = 1;
+    DataType datatype =2;
 }

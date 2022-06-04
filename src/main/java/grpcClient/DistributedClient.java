@@ -1,7 +1,11 @@
 package grpcClient;
 
 import ServiceGRPC.*;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
+import config.Constraints;
+import config.Utils;
+import crypto.Crypto;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
@@ -10,7 +14,9 @@ import kademlia.Node;
 import kademlia.TripleNode;
 import lombok.Getter;
 import lombok.Setter;
+import myBlockchain.Block;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,6 +29,9 @@ e não preciso de mandar o ip do nó que quero comunicar ahaha troll
 @Getter
 @Setter
 public class DistributedClient {
+    private static final Crypto crypto = new Crypto();
+    private static final Utils utils = new Utils();
+    private static final Constraints constraints = new Constraints();
     private static final Logger logger = Logger.getLogger(DistributedClient.class.getName());
     public String ip;
     public int port;
@@ -70,7 +79,7 @@ public class DistributedClient {
             }
             @Override
             public void onError(Throwable t) {
-                System.out.println("No connection, removed node");
+                //System.out.println("No connection, removed node");
                 try {
                     closeConnection(channel);
                 } catch (InterruptedException e) {
@@ -99,11 +108,13 @@ public class DistributedClient {
 
     }
     public void findNode(List<TripleNode> list,TripleNode node,TripleNode target) throws InterruptedException {
+        Node n=this.node;
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<KBucket> responseObserver = new StreamObserver<KBucket> (){
             @Override
             public void onNext(KBucket value) {
                 TripleNode newNode = new TripleNode(value.getNodeId(), value.getIp(), value.getPort());
+                n.tryToAddNode(newNode);
                 synchronized (list) {
                     list.add(newNode);
                 }
@@ -111,7 +122,7 @@ public class DistributedClient {
 
             @Override
             public void onError(Throwable t) {
-                System.out.println("Não respondeu!");
+                //System.out.println("Não respondeu!");
                 try {
                     closeConnection(channel);
                 } catch (InterruptedException e) {
@@ -121,7 +132,6 @@ public class DistributedClient {
 
             @Override
             public void onCompleted() {
-                System.out.println("Acabou com sucesso");
                 try {
                     closeConnection(channel);
                 } catch (InterruptedException e) {
@@ -140,12 +150,12 @@ public class DistributedClient {
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }
     }
-    public void storeValue(TripleNode node, String key, byte[] value) throws InterruptedException {
+    public void storeValue(TripleNode node, String key, byte[] value,TripleNode tripleNode) throws InterruptedException {
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Empty> responseObserver = new StreamObserver<Empty> (){
             @Override
             public void onNext(Empty value) {
-                System.out.println("Value Stored");
+                System.out.println("Value Stored on: "+node.getNodeId());
             }
 
             @Override
@@ -167,9 +177,15 @@ public class DistributedClient {
             }
         };
         try {
+            Ping ping = Ping.newBuilder()
+                    .setNodeId(tripleNode.getNodeId())
+                    .setIp(tripleNode.getIp())
+                    .setPort(tripleNode.getPort())
+                    .build();
             Data data = Data.newBuilder()
                     .setKey(key)
                     .setValue(ByteString.copyFrom(value))
+                    .setPing(ping)
                     .build();
             asyncStub.store(data,responseObserver);
         } catch(StatusRuntimeException e){
@@ -182,19 +198,19 @@ public class DistributedClient {
         StreamObserver<Found> responseObserver = new StreamObserver<Found> (){
             @Override
             public void onNext(Found value) {
+                KBucket kBucket =  value.getKBucket();
+                TripleNode newNode = new TripleNode(kBucket.getNodeId(), kBucket.getIp(), kBucket.getPort());
+                n.tryToAddNode(newNode);
                 if(value.getFound()){
                     n.getData().put(key, value.getValue().toByteArray());
                 }
                 else {
-                    KBucket kBucket =  value.getKBucket();
-                    TripleNode newNode = new TripleNode(kBucket.getNodeId(), kBucket.getIp(), kBucket.getPort());
                     list.add(newNode);
                 }
             }
 
             @Override
-            public void onError(Throwable t) {
-                System.out.println("Não respondeu!");
+            public void onError(Throwable t) {;
                 try {
                     closeConnection(channel);
                 } catch (InterruptedException e) {
@@ -221,5 +237,44 @@ public class DistributedClient {
         } catch(StatusRuntimeException e){
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }
+    }
+    public void sendTransaction(myBlockchain.Transaction transaction, TripleNode node, DataType datatype){
+        P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
+        StreamObserver<Empty> responseObserver = new StreamObserver<Empty> (){
+            @Override
+            public void onNext(Empty empty) {
+            }
+
+            @Override
+            public void onError(Throwable t) {;
+                try {
+                    closeConnection(channel);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            @Override
+            public void onCompleted() {
+                System.out.println("Bloco de dados enviada com sucesso");
+                try {
+                    closeConnection(channel);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+       try {
+            BlockData transaction1 = BlockData.newBuilder()
+                    .setData(ByteString.copyFrom(utils.serialize(transaction)))
+                    .setDatatype(datatype)
+                    .build();
+
+            asyncStub.broadcast(transaction1,responseObserver);
+        } catch(StatusRuntimeException e){
+            logger.info("RPC failed: {0}"+ e.getStatus()+"!");
+        } catch (IOException e) {
+           throw new RuntimeException(e);
+       }
     }
 }

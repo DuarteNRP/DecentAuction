@@ -4,15 +4,15 @@ import java.io.*;
 import java.util.*;
 
 //wrapper containing auction data
-public class Message<T>{
+class Message<T>{
 
     private String topic;
     private T payload;
 
     Message(){}
-    public Message(String topic, T payload){
-        this.topic = topic;
-        this.payload = payload;
+    Message(String topic, T payload){
+	this.topic = topic;
+	this.payload = payload;
     }
 
     public String getTopic(){return topic;}
