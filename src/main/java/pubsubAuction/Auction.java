@@ -1,9 +1,11 @@
 package pubsubAuction;
 
+import kademlia.Node;
+
 import java.io.*;
 import java.util.*;
 
-class Auction{
+public class Auction{
 
     private Node owner;
     private ArrayList<Item> items;
@@ -15,17 +17,17 @@ class Auction{
 
     public List<Bid> getBids(){return bids;}
 
-    Auction(Node owner, ArrayList<Item> items){
+    public Auction(Node owner, ArrayList<Item> items){
 	this.owner = owner;
 	this.items = items;
     }
 
-    void bid(Node bidder, Item item, int bid){
+    public void bid(Node bidder, Item item, int bid){
 	//TODO check bid amount, and if everythign else exists
 	bids.add(new Bid(bidder, item, bid));
     }
 
-    Map<String, Bid> finish(){
+    public Map<String, Bid> finish(){
        Map<String, Bid> results = new HashMap<>();
 
        for(Bid bid : bids){
@@ -44,7 +46,7 @@ class Auction{
        for(String key : results.keySet()){
 	   Bid bid = results.get(key);
 	   System.out.println("item "+bid.getItem()+
-			      " won by "+bid.getBidder().getNodeId()+
+			      " won by "+bid.getBidder()+
 			      " bidding "+bid.getBid());
        }
 

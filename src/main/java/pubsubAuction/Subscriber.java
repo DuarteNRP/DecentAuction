@@ -1,15 +1,17 @@
 package pubsubAuction;
 
+import kademlia.Node;
+
 import java.io.*;
 import java.util.*;
 
-class Subscriber{
+public class Subscriber{
 
     private Node node;
 
     private List<Message> messages = new LinkedList<>();
 
-    Subscriber(Node node){this.node = node;}
+    public Subscriber(Node node){this.node = node;}
 
     public List<Message> getMessages(){return messages;}
 
