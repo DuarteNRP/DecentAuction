@@ -12,7 +12,6 @@ import crypto.Crypto;
 import lombok.Getter;
 import lombok.Setter;
 import grpcClient.DistributedClient;
-import pubsubAuction.*;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -30,14 +29,6 @@ public class Node{
     private int port;
     private TripleNode node;
     private DistributedClient distributedClient;
-
-    private Publisher pub = new Publisher(this);
-    private Subscriber sub = new Subscriber(this);
-
-    //TODO tem de ser o mesmo que a blockchain
-    public Service auctionHouse = new Service();
-
-	
     public Node(TripleNode node){
         this.node=node;
         this.nodeId=node.getNodeId();
@@ -146,7 +137,7 @@ public class Node{
         return true;
     }
     public ArrayList<TripleNode> findKClosestNodes(TripleNode tripleNode){
-        System.out.println("Try to find kclosest from: " + tripleNode.getNodeId());
+        //System.out.println("Try to find kclosest from: " + tripleNode.getNodeId());
         ArrayList<Bucket> visited= new ArrayList<>();
         int kClosest=constraints.K;
         ArrayList<TripleNode> closestNodes;
@@ -170,7 +161,7 @@ public class Node{
             String fakeNodeId;
             changeBit=accumulatedBits.length()-1;
             if(changeBit==-1){
-                System.out.println("Contains less than k nodes in route table");
+                //System.out.println("Contains less than k nodes in route table");
                 break;
             }
             fakeNodeId=binaryNodeId.substring(changeBit+1);
@@ -201,11 +192,10 @@ public class Node{
         this.routingtable.printRouteTable();
 
     }
-    public void pingNode(TripleNode tripleNode){
+    public void pingNode(TripleNode tripleNode) throws InterruptedException {
         this.distributedClient.sendPing(tripleNode);
     }
     public ArrayList<TripleNode> findNode(TripleNode tripleNode) throws InterruptedException {
-        System.out.println("Começou");
         CopyOnWriteArrayList<TripleNode> closestNodes = new CopyOnWriteArrayList<>(this.findKClosestNodes(tripleNode));
         if(closestNodes.size()>constraints.K)
             closestNodes= (CopyOnWriteArrayList) closestNodes.subList(0,constraints.ALPHA);
@@ -217,21 +207,22 @@ public class Node{
             System.out.println(closestNodes);
             System.out.println(kClosestNodes);
             parallelFindNode(kClosestNodes,closestNodes,visited,tripleNode);
+            Thread.sleep(1000);
+            if(tripleNode.getIp().equals("") && this.getData().containsKey(tripleNode.getNodeId())){
+                break;
+            }
             if (utils.removeVisited(closestNodes, visited).size() == 0) {
                 break;
             }
         }
-        System.out.println("saiu");
         ArrayList<TripleNode> finalKClosestNodes = new ArrayList<>(kClosestNodes);
         utils.sortArrayList(finalKClosestNodes,tripleNode.getNodeId());
-        System.out.println(finalKClosestNodes);
         if(finalKClosestNodes.size()>constraints.K){
             return new ArrayList<TripleNode>( finalKClosestNodes.subList(0,constraints.K));
         }
         return new ArrayList<>(finalKClosestNodes);
     }
     public void parallelFindNode(CopyOnWriteArrayList<TripleNode> kClosestNodes,CopyOnWriteArrayList<TripleNode> closestNodes,CopyOnWriteArrayList<String> visited,TripleNode target) throws InterruptedException {
-        System.out.println("Chegou");
         ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(3);
         for(int i=0;i<closestNodes.size();i++){
             int index=i;
@@ -239,7 +230,20 @@ public class Node{
                 @Override
                 public void run() {
                     TripleNode tripleNode = closestNodes.get(index);
-                    distributedClient.findNode(closestNodes,tripleNode,target);
+                    if(!target.getIp().equals("")) {
+                        try {
+                            distributedClient.findNode(closestNodes,tripleNode,target);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    else {
+                        try {
+                            distributedClient.findValue(closestNodes,tripleNode,target.getNodeId());
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
                     visited.add(tripleNode.getNodeId());
                     kClosestNodes.add(tripleNode);
                 }
@@ -248,10 +252,7 @@ public class Node{
             if(i==2) break;
         }
         executor.shutdown();
-        System.out.println("A fazer threads ainda");
-        Thread.sleep(5000);
         while(!executor.isTerminated()){}
-        System.out.println("Acabou threads");
     }
     //find node sem ser paralelo, acho que o outro já está a funcionar
     public ArrayList<TripleNode> findNode1(TripleNode tripleNode) throws InterruptedException {
@@ -280,56 +281,17 @@ public class Node{
         }
         return new ArrayList<>(finalKClosestNodes);
     }
-    public void store(TripleNode target,String key,byte[] value){
+    public void store(TripleNode target,String key,byte[] value) throws InterruptedException {
         distributedClient.storeValue(target,key,value);
     }
-
-    //TODO
-    //auction
-    public void startNewAuction(ArrayList<Item> items){
-	//TODO fix name
-	String topic = "hashthis";
-	Auction auction = new Auction(this, items);
-	auctionHouse.setAuction(topic, auction);
-	Message message = new Message(topic, auction);
-
-    pub.publish(message, auctionHouse);
-    sub.subscribe(topic, auctionHouse);
-
-	//TODO
-	//broadcast to everyone
-    }
-
-    public void makeBid(String topic, Item item, int value){
-	Message message = new Message(topic, node+" just made a bid for item "+item);
-
-	sub.subscribe(topic, auctionHouse);
-	Auction auction = auctionHouse.getAuction(topic);
-	auction.bid(this, item, value);
-	auctionHouse.setAuction(topic, auction);
-	pub.publish(message, auctionHouse);
-
-	//TODO
-	//broadcast to subsribers
-	auctionHouse.broadcast();
-    }
-
-    void closeAuction(String topic){
-	Auction auction = auctionHouse.getAuction(topic);
-
-	Map<String, Bid> winners = auction.finish();
-	for(String item : winners.keySet()){
-	    Bid bid = winners.get(item);
-	    String result = bid.getBidder()+" won item "+bid.getItem();
-	    Message message = new Message(topic, result);
-	    pub.publish(message, auctionHouse);
-	}
-
-	auctionHouse.close(auction);
-
-	//TODO
-	//boradcast to subscribers
-	//commit to blockchain
-	auctionHouse.broadcast();
+    public byte[] findValue(String key) throws InterruptedException {
+        ArrayList<TripleNode> tripleNodes=this.findNode(new TripleNode(key,"",0));
+        if(this.getData().containsKey(key)) {
+            for (TripleNode tripleNode : tripleNodes) {
+                this.store(tripleNode, key, this.getData().get(key));
+            }
+            return this.getData().get(key);
+        }
+        return null;
     }
 }
