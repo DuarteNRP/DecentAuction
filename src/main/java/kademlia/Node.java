@@ -2,12 +2,11 @@ package kademlia;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.*;
 
+import ServiceGRPC.Data;
 import ServiceGRPC.DataType;
 import config.Constraints;
 import config.Utils;
@@ -23,10 +22,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @Getter
 @Setter
 public class Node implements Serializable {
+    public Wallet wallet;
     public ConcurrentHashMap<String,byte[]> data;
-    public Transaction transaction = null;
+    public ArrayList<Transaction> transactionPool = null;
     public Block block = null;
-    public Chain blockChain = null;
+    public Chain chain = null;
     public RoutingTable routingtable;
     private static final Crypto crypto = new Crypto();
     private static final Utils utils = new Utils();
@@ -39,14 +39,17 @@ public class Node implements Serializable {
     private DistributedClient distributedClient;
     private Publisher pub = new Publisher(this);
     private Subscriber sub = new Subscriber(this);
+    public CopyOnWriteArrayList<String> broadcastId = new CopyOnWriteArrayList<>();
 
     //TODO tem de ser o mesmo na rede, aka DHT
     public Service auctionHouse = new Service();
-    public Node(TripleNode node){
+    public Node(TripleNode node) throws NoSuchAlgorithmException {
         this.node=node;
         this.nodeId=node.getNodeId();
         this.routingtable = new RoutingTable(node);
         this.data = new ConcurrentHashMap<>();
+        this.wallet = new Wallet();
+        BlockChainThread thread = new BlockChainThread("Refresh blockchain and Id list",broadcastId);
     }
     public String getHash() {
         return crypto.hash(this.toString());
@@ -218,12 +221,11 @@ public class Node implements Serializable {
         CopyOnWriteArrayList<TripleNode> kClosestNodes = new CopyOnWriteArrayList<>();
         CopyOnWriteArrayList<String> visited = new CopyOnWriteArrayList<>();
         while(true) {
-            int size = (closestNodes.size()<constraints.ALPHA) ? closestNodes.size() : constraints.ALPHA;
-            System.out.println("Ver o array closest");
-            System.out.println(closestNodes);
-            System.out.println(kClosestNodes);
+            //System.out.println("Ver o array closest");
+            //System.out.println(closestNodes);
+            //System.out.println(kClosestNodes);
             parallelFindNode(kClosestNodes,closestNodes,visited,tripleNode);
-            Thread.sleep(5000);
+            Thread.sleep(2000);
             if(tripleNode.getIp().equals("") && this.getData().containsKey(tripleNode.getNodeId())){
                 break;
             }
@@ -239,7 +241,7 @@ public class Node implements Serializable {
         return new ArrayList<>(finalKClosestNodes);
     }
     public void parallelFindNode(CopyOnWriteArrayList<TripleNode> kClosestNodes,CopyOnWriteArrayList<TripleNode> closestNodes,CopyOnWriteArrayList<String> visited,TripleNode target) throws InterruptedException {
-        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(3);
+        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(constraints.K);
         for(int i=0;i<closestNodes.size();i++){
             int index=i;
             executor.execute(new Runnable() {
@@ -273,32 +275,6 @@ public class Node implements Serializable {
         while(!executor.isTerminated()){}
     }
     //find node sem ser paralelo, acho que o outro já está a funcionar
-    public ArrayList<TripleNode> findNode1(TripleNode tripleNode) throws InterruptedException {
-        System.out.println("Começou");
-        CopyOnWriteArrayList<TripleNode> closestNodes = new CopyOnWriteArrayList<>(this.findKClosestNodes(tripleNode));
-        if(closestNodes.size()>constraints.K)
-            closestNodes= (CopyOnWriteArrayList) closestNodes.subList(0,constraints.ALPHA);
-        CopyOnWriteArrayList<TripleNode> kClosestNodes = new CopyOnWriteArrayList<>();
-        List<String> visited = Collections.synchronizedList(new ArrayList<>());
-        while(true) {
-            System.out.println("Ver o array closest");
-            System.out.println(closestNodes);
-            System.out.println(kClosestNodes);
-            kClosestNodes.add(closestNodes.get(0));
-            visited.add(closestNodes.get(0).getNodeId());
-            distributedClient.findNode(closestNodes,closestNodes.get(0),tripleNode);
-            if (utils.removeVisited(closestNodes, visited).size() == 0) {
-                    break;
-            }
-        }
-        System.out.println("saiu");
-        ArrayList<TripleNode> finalKClosestNodes = new ArrayList<>(kClosestNodes);
-        utils.sortArrayList(finalKClosestNodes,tripleNode.getNodeId());
-        if(finalKClosestNodes.size()>constraints.K){
-            return new ArrayList<TripleNode>( finalKClosestNodes.subList(0,constraints.K));
-        }
-        return new ArrayList<>(finalKClosestNodes);
-    }
     public void store(TripleNode target,String key,byte[] value) throws InterruptedException {
         distributedClient.storeValue(target,key,value,this.node);
     }
@@ -312,13 +288,10 @@ public class Node implements Serializable {
         }
         return null;
     }
-    public void sendData(TripleNode tripleNode, Transaction transaction, DataType datatype) throws IOException {
-        distributedClient.sendData(utils.serialize(transaction),tripleNode,datatype);
-    }
 
     //TODO
     //auction
-    public void startNewAuction(ArrayList<Item> items,TripleNode target) throws IOException {
+    public void startNewAuction(ArrayList<Item> items) throws IOException {
         //TODO fix name
         String topic = "hashthis";
         Auction auction = new Auction(this, items);
@@ -332,11 +305,11 @@ public class Node implements Serializable {
 
         //TODO
         auctionHouse.broadcast();
-        this.distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION);
+        this.broadcast(utils.serialize(this.auctionHouse),topic,DataType.AUCTION);
         //broadcast to everyone
     }
 
-    public void makeBid(String topic, Item item, int value,TripleNode target) throws IOException {
+    public void makeBid(String topic, Item item, int value) throws IOException {
         Message message = new Message(topic, node+" just made a bid for item "+item);
 
         sub.subscribe(topic, auctionHouse);
@@ -348,10 +321,10 @@ public class Node implements Serializable {
         //TODO
         //broadcast to subsribers
         auctionHouse.broadcast();
-        distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION);
+        this.broadcast(utils.serialize(this.auctionHouse),topic,DataType.AUCTION);
     }
 
-    public void closeAuction(String topic,TripleNode target) throws IOException {
+    public void closeAuction(String topic) throws IOException {
         Auction auction = auctionHouse.getAuction(topic);
 
         Map<String, Bid> winners = auction.finish();
@@ -365,9 +338,26 @@ public class Node implements Serializable {
         auctionHouse.close(auction);
 
         //TODO
-        //boradcast to subscribers
+        //broadcast to subscribers
         //commit to blockchain
         auctionHouse.broadcast();
-        distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION);
+        this.broadcast(utils.serialize(this.auctionHouse),topic,DataType.AUCTION);
+    }        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(constraints.K);
+    public void broadcast(byte[] arr, String identifier, DataType dataType){
+        ArrayList<TripleNode> allNodes= allNodes(this.routingtable.getRootBinaryTreeNode());
+        for(int i=0;i<allNodes.size();i++) {
+            distributedClient.sendData(arr, allNodes.get(i), dataType, identifier);
+        }
+    }
+    public ArrayList<TripleNode> allNodes(BinaryTreeNode root){
+        if(root==null)
+            return new ArrayList<>();
+        if(root.getRight()==null && root.getLeft()==null){
+            return root.getKBucket().getKBucket();
+        }
+        ArrayList<TripleNode> left = allNodes(root.getLeft());
+        ArrayList<TripleNode> right = allNodes(root.getRight());
+        left.addAll(right);
+        return left;
     }
 }

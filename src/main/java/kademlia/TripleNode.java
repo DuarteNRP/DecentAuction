@@ -19,7 +19,7 @@ public class TripleNode {
         this.ip=ip;
         this.port=port;
         //defend for sybil attack
-        this.nodeId=utils.getBinaryFromHash(crypto.hash(ip+Integer.toString(port)+Long.toString(new Date().getTime())));
+        this.nodeId=utils.getBinaryFromHash(utils.mineId(crypto.hash(ip+Integer.toString(port)+Long.toString(new Date().getTime()))));
         //this.nodeId=crypto.hash(ip+Integer.toString(port)+Long.toString(new Date().getTime()));
     }
     public TripleNode(String nodeId,String ip,int port){

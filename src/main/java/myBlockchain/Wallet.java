@@ -4,11 +4,12 @@ import crypto.Crypto;
 import config.*;
 
 import javax.sound.midi.SysexMessage;
+import java.io.Serializable;
 import java.security.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class Wallet {
+public class Wallet implements Serializable {
     public HashMap<String,TransactionOutput> UTXOs = new HashMap<String,TransactionOutput>(); //only UTXOs owned by this wallet.
     //meter a private?
     public PrivateKey privateKey;

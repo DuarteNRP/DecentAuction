@@ -1,5 +1,6 @@
 package myBlockchain;
 
+import java.io.Serializable;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,23 +10,27 @@ import crypto.Crypto;
 import config.*;
 import myBlockchain.Block;
 
-public class Chain {
+public class Chain implements Serializable {
     public static final float minimumTransaction = 0.1f;
     public static HashMap<String,TransactionOutput> UTXOs = new HashMap<String,TransactionOutput>(); //list of all unspent transactions.
     public static ArrayList<Block> blockchain = new ArrayList<Block>();
     private static final Constraints constraints = new Constraints();
     private static final Utils utils = new Utils();
+    private static final Crypto crypto = new Crypto();
     public static Wallet walletA;
     public static Wallet walletB;
     public static Transaction genesisTransaction;
+    public static long numberOfBlocks=0;
     public Chain() {
         this.append(new Block("0"));
+        numberOfBlocks=1;
     }
     public void append(Block block) {
         if (this.blockchain.size() != 0)
             block.setPreviousHash(this.getLastBlock().getActualHash());
         block.mineBlock();
         this.blockchain.add(block);
+        numberOfBlocks+=1;
     }
     public Block getLastBlock() {
         return this.blockchain.get(this.blockchain.size()-1);
@@ -157,5 +162,14 @@ public class Chain {
     public static void addBlock(Block newBlock) {
         newBlock.mineBlock();
         blockchain.add(newBlock);
+        numberOfBlocks+=1;
     }
+    public String getBlockChainHash(){
+        String hash="";
+        for(Block b : blockchain){
+            hash= crypto.hash(hash+""+b.actualHash);
+        }
+        return hash;
+    }
+
 }

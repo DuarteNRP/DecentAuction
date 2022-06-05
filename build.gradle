@@ -26,7 +26,7 @@ sourceSets {
 // longer compatible w/ the latest gradle version.
 //
 // Visit https://mvnrepository.com/artifact/io.grpc/grpc-protobuf
-def grpcVersion = '1.29.0'
+def grpcVersion = '1.46.0'
 
 dependencies {
     repositories {

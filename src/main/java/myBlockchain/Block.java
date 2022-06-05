@@ -1,5 +1,6 @@
 package myBlockchain;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -9,8 +10,8 @@ import crypto.Crypto;
 import config.*;
 @Getter
 @Setter
-public class Block {
-    public ArrayList<Transaction> transactions = new ArrayList<Transaction>(); //our data will be a simple message.
+public class Block implements Serializable {
+    public ArrayList<Transaction> transactions = new ArrayList<Transaction>();
     private static final Crypto crypto = new Crypto();
     private static final Constraints constraints = new Constraints();
     private static final Utils utils = new Utils();

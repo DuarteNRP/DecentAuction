@@ -6,6 +6,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import config.Constraints;
 import config.Utils;
 import crypto.Crypto;
+import io.grpc.Context;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -13,10 +14,12 @@ import kademlia.Node;
 import kademlia.TripleNode;
 import lombok.Getter;
 import lombok.Setter;
+import myBlockchain.Chain;
 import pubsubAuction.Auction;
 import pubsubAuction.Service;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +34,7 @@ public class ServerService{
     private Node serviceNode;
     private TripleNode serviceTripleNode;
     private DistributedClient distributedClient;
-    public ServerService(String ip, int port){
+    public ServerService(String ip, int port) throws NoSuchAlgorithmException {
         this.ip=ip;
         this.port=port;
         this.distributedClient=new DistributedClient(this.ip,this.port);
@@ -160,39 +163,49 @@ public class ServerService{
 
         @Override
         public void broadcast(BlockData request, StreamObserver<Empty> responseObserver) {
-            myBlockchain.Transaction t;
-            myBlockchain.Block b;
-            myBlockchain.Chain c;
-            Service service;
+            if(this.node.broadcastId.contains(request.getIdentifier())){
+                //System.out.println("Nó para Não guardar"+this.node.getNodeId());
+                responseObserver.onNext(Empty.newBuilder().build());
+                responseObserver.onCompleted();
+                return;
+            }
+            this.node.broadcastId.add(request.getIdentifier());
+            //System.out.println("Nó para guardar"+this.node.getNodeId());
             try {
                 if(request.getDatatype()==DataType.BLOCK) {
-                    b = (myBlockchain.Block) utils.deserialize(request.getData().toByteArray());
+                    myBlockchain.Block b = (myBlockchain.Block) utils.deserialize(request.getData().toByteArray());
                     this.node.setBlock(b);
                     System.out.println("Guardou bloco em:" +this.node.getNodeId());
                 }
                 else if(request.getDatatype()==DataType.TRANSACTION) {
-                    t = (myBlockchain.Transaction) utils.deserialize(request.getData().toByteArray());
-                    this.node.setTransaction(t);
-                    System.out.println("Guardou transaçao em:" +this.node.getNodeId());
+                    myBlockchain.Transaction t = (myBlockchain.Transaction) utils.deserialize(request.getData().toByteArray());
+                    this.node.getTransactionPool().add(t);
+
+                    System.out.println("Guardou transaçao em:" +this.node.getNodeId()+" , identifier: "+request.getIdentifier());
                 }
                 else if(request.getDatatype()==DataType.BLOCKCHAIN) {
-                    c = (myBlockchain.Chain) utils.deserialize(request.getData().toByteArray());
-                    this.node.setBlockChain(c);
-                    System.out.println("Guardou blockchain em:" +this.node.getNodeId());
+                    Chain c = (myBlockchain.Chain) utils.deserialize(request.getData().toByteArray());
+                    if(this.node.getChain().blockchain!=null && this.node.getChain().blockchain.size()<c.blockchain.size()) {
+                        this.node.setChain(c);
+                        System.out.println("Guardou blockchain em:" + this.node.getNodeId());
+                    }
                 }
                 else if(request.getDatatype()==DataType.AUCTION){
-                    service = (Service) utils.deserialize(request.getData().toByteArray());
+                    Service service = (Service) utils.deserialize(request.getData().toByteArray());
                     this.node.setAuctionHouse(service);
-                    this.node.getAuctionHouse().broadcast();
                 }
+                Context ctx = Context.current().fork();
+                // Set ctx as the current context within the Runnable
+                ctx.run(() -> {
+                    this.node.broadcast(request.getData().toByteArray(),request.getIdentifier(),request.getDatatype());
+                });
+                responseObserver.onNext(Empty.newBuilder().build());
+                responseObserver.onCompleted();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                System.out.println(e);
             } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
+                System.out.println(e);
             }
-            responseObserver.onNext(Empty.newBuilder().build());
-            responseObserver.onCompleted();
-
         }
     }
 }

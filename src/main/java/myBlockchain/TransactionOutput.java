@@ -1,10 +1,11 @@
 package myBlockchain;
 
+import java.io.Serializable;
 import java.security.PublicKey;
 import config.Utils;
 import crypto.Crypto;
 
-public class TransactionOutput {
+public class TransactionOutput implements Serializable {
     private static final Utils utils = new Utils();
     private static final Crypto cripto = new Crypto();
     public String id;

@@ -101,4 +101,13 @@ public class Utils {
         ObjectInputStream is = new ObjectInputStream(in);
         return is.readObject();
     }
+    public String mineId(String hash) {
+        int nonce=0;
+        String target = new String(new char[constraints.MINING_DIFFICULTY]).replace('\0', '0'); //Create a string with difficulty * "0"
+        while(!hash.substring( 0, constraints.MINING_DIFFICULTY).equals(target)) {
+            nonce ++;
+            hash = crypto.hash(hash+Integer.toString(nonce));
+        }
+        return hash;
+    }
 }

@@ -4,12 +4,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Random;
 
 @Getter
 @Setter
-public class Stake{
+public class Stake implements Serializable {
     public static ArrayList<Staker> stakerList;
     public static void add(Staker s){
         stakerList.add(s);

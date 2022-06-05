@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 /*
@@ -37,6 +38,7 @@ public class DistributedClient {
     public int port;
     public Node node;
     public ManagedChannel channel;
+    public ConcurrentHashMap<String,ManagedChannel> cachedChannel= new ConcurrentHashMap<>();
     /*private ManagedChannel channel;
     private P2PServiceGrpc.P2PServiceBlockingStub blockingStub;
     private P2PServiceGrpc.P2PServiceStub asyncStub;*/
@@ -45,12 +47,15 @@ public class DistributedClient {
         this.port=port;
     }
     public P2PServiceGrpc.P2PServiceStub newAsyncStub(TripleNode node){
+        if(cachedChannel.contains(node.getNodeId())){
+            return P2PServiceGrpc.newStub(cachedChannel.get(node.getNodeId()));
+        }
         channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
                 // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
                 // needing certificates.
                 .usePlaintext()
                 .build();
-
+        cachedChannel.put(node.getNodeId(),channel);
         return P2PServiceGrpc.newStub(channel);
     }
     public P2PServiceGrpc.P2PServiceBlockingStub newBlockingStub(TripleNode node){
@@ -64,7 +69,7 @@ public class DistributedClient {
     public void closeConnection(ManagedChannel channel) throws InterruptedException {
         channel.shutdownNow();
         try {
-            channel.awaitTermination(1, TimeUnit.SECONDS);
+            channel.awaitTermination(3, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -80,19 +85,9 @@ public class DistributedClient {
             @Override
             public void onError(Throwable t) {
                 //System.out.println("No connection, removed node");
-                try {
-                    closeConnection(channel);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
             }
             @Override
             public void onCompleted() {
-                try {
-                    closeConnection(channel);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
             }
         };
         try {
@@ -115,28 +110,16 @@ public class DistributedClient {
             public void onNext(KBucket value) {
                 TripleNode newNode = new TripleNode(value.getNodeId(), value.getIp(), value.getPort());
                 n.tryToAddNode(newNode);
-                synchronized (list) {
-                    list.add(newNode);
-                }
+                list.add(newNode);
             }
 
             @Override
             public void onError(Throwable t) {
                 //System.out.println("Não respondeu!");
-                try {
-                    closeConnection(channel);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
             }
 
             @Override
             public void onCompleted() {
-                try {
-                    closeConnection(channel);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
             }
         };
         try {
@@ -161,19 +144,10 @@ public class DistributedClient {
             @Override
             public void onError(Throwable t) {
                 System.out.println("Value not stored, peer must be down");
-                try {
-                    closeConnection(channel);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
             }
 
             @Override
-            public void onCompleted() {try {
-                closeConnection(channel);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            public void onCompleted() {
             }
         };
         try {
@@ -211,20 +185,10 @@ public class DistributedClient {
 
             @Override
             public void onError(Throwable t) {;
-                try {
-                    closeConnection(channel);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
             }
 
             @Override
             public void onCompleted() {
-                try {
-                    closeConnection(channel);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
             }
         };
         try {
@@ -238,7 +202,7 @@ public class DistributedClient {
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }
     }
-    public void sendData(byte[] arr, TripleNode node, DataType datatype){
+    public void sendData(byte[] arr, TripleNode node, DataType datatype,String identifier){
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Empty> responseObserver = new StreamObserver<Empty> (){
             @Override
@@ -246,31 +210,23 @@ public class DistributedClient {
             }
 
             @Override
-            public void onError(Throwable t) {;
-                try {
-                    closeConnection(channel);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+            public void onError(Throwable t) {
+                //System.out.println("não respondeu: "+node.getNodeId()+","+node.getIp()+","+node.getPort());
+                //System.out.println(t);
             }
 
             @Override
             public void onCompleted() {
-                System.out.println("Bloco de dados enviada com sucesso");
-                try {
-                    closeConnection(channel);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
             }
         };
        try {
-            BlockData transaction1 = BlockData.newBuilder()
+            BlockData data = BlockData.newBuilder()
                     .setData(ByteString.copyFrom(arr))
+                    .setIdentifier(identifier)
                     .setDatatype(datatype)
                     .build();
 
-            asyncStub.broadcast(transaction1,responseObserver);
+            asyncStub.broadcast(data,responseObserver);
         } catch(StatusRuntimeException e){
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
        }
