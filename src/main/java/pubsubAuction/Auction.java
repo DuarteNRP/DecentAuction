@@ -43,20 +43,23 @@ public class Auction implements Serializable{
 	   results.put(key, curr);
        }
 
+
+
        //anounce results
        //for debug purposes only
-       for(String key : results.keySet()){
+
+       /*for(String key : results.keySet()){
 	   Bid bid = results.get(key);
 	   System.out.println("item "+bid.getItem()+
 			      " won by "+bid.getBidder()+
 			      " bidding "+bid.getBid());
-       }
+       }*/
 
        return results;
    }
 
     @Override
     public String toString(){
-	return "Auction by "+owner+" of items: "+items;
+	return "Auction by "+owner+" of items: "+items+"with "+bids+" bids";
     }
 }

@@ -47,4 +47,5 @@ message BlockData{
     bytes data = 1;
     DataType datatype =2;
     string identifier =3;
+    Ping ping = 4;
 }

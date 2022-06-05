@@ -24,8 +24,6 @@ public class Subscriber implements Serializable{
     public void unsubscribe(String topic, Service service){
 	service.removeSubscriber(nodeId, topic);}
 
-    public void getMessagesOfTopic(String topic, Service service){
-	service.getMessagesOfTopic(topic, this);}
 
     public void printMessages(){
 	System.out.println(this.nodeId+": ");

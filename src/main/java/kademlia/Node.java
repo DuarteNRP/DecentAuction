@@ -291,9 +291,9 @@ public class Node implements Serializable {
         return null;
     }
 
-    public void startNewAuction(ArrayList<Item> items/*, TripleNode target*/) throws IOException {
+    public void startNewAuction(ArrayList<Item> items) throws IOException {
         //TODO fix name
-        String topic = "someAuction";
+        String topic = crypto.hash(String.valueOf(new Date().getTime()));
         Auction auction = new Auction(this, items);
         System.out.println("node: "+auctionHouse.getOpenAuctions().size());
         auctionHouse.setAuction(topic, auction);
@@ -302,12 +302,13 @@ public class Node implements Serializable {
 
         pub.publish(message, auctionHouse);
         sub.subscribe(topic, auctionHouse);
+        auctionHouse.printAll();
 
-        //this.distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION, "p00p");
-        this.broadcast(utils.serialize(this.auctionHouse),topic,DataType.AUCTION);
+        String identifier = crypto.hash(String.valueOf(new Date().getTime()));
+        this.broadcast(utils.serialize(this.auctionHouse),identifier,DataType.AUCTION);
     }
 
-    public void makeBid(String topic, Item item, int value/*, TripleNode target*/) throws IOException {
+    public void makeBid(String topic, Item item, int value) throws IOException {
         Message message = new Message(topic, node+" just made a bid for item "+item);
 
         sub.subscribe(topic, auctionHouse);
@@ -315,12 +316,13 @@ public class Node implements Serializable {
         auction.bid(this, item, value);
         auctionHouse.setAuction(topic, auction);
         pub.publish(message, auctionHouse);
+        auctionHouse.printAll();
 
-        //distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION, "p00p");
-        this.broadcast(utils.serialize(this.auctionHouse),topic,DataType.AUCTION);
+        String identifier = crypto.hash(String.valueOf(new Date().getTime()));
+        this.broadcast(utils.serialize(this.auctionHouse),identifier,DataType.AUCTION);
     }
 
-    public void closeAuction(String topic/*, TripleNode target*/) throws IOException {
+    public void closeAuction(String topic) throws IOException {
         Auction auction = auctionHouse.getAuction(topic);
 
         Map<String, Bid> winners = auction.finish();
@@ -332,8 +334,8 @@ public class Node implements Serializable {
         }
         auctionHouse.close(topic);
 
-        //distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION, "p00p");
-        this.broadcast(utils.serialize(this.auctionHouse),topic,DataType.AUCTION);
+        String identifier = crypto.hash(String.valueOf(new Date().getTime()));
+        this.broadcast(utils.serialize(this.auctionHouse),identifier,DataType.AUCTION);
     }
     public void retrieveSubscribedMessages(){auctionHouse.retrieveSubscribedMessages(this);}
 

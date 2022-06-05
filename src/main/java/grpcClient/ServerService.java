@@ -163,8 +163,10 @@ public class ServerService{
 
         @Override
         public void broadcast(BlockData request, StreamObserver<Empty> responseObserver) {
+            TripleNode tripleNode = new TripleNode(request.getPing().getNodeId(), request.getPing().getIp(), request.getPing().getPort());
+            this.node.tryToAddNode(tripleNode);
             if(this.node.broadcastId.contains(request.getIdentifier())){
-                //System.out.println("Nó para Não guardar"+this.node.getNodeId());
+                System.out.println("Nó para Não guardar"+this.node.getNodeId());
                 responseObserver.onNext(Empty.newBuilder().build());
                 responseObserver.onCompleted();
                 return;
@@ -185,12 +187,13 @@ public class ServerService{
                 }
                 else if(request.getDatatype()==DataType.BLOCKCHAIN) {
                     Chain c = (myBlockchain.Chain) utils.deserialize(request.getData().toByteArray());
-                    if(this.node.getChain().blockchain!=null && this.node.getChain().blockchain.size()<c.blockchain.size()) {
+                    if(this.node.getChain()==null || this.node.getChain().blockchain.size()<c.blockchain.size()) {
                         this.node.setChain(c);
                         System.out.println("Guardou blockchain em:" + this.node.getNodeId());
                     }
                 }
                 else if(request.getDatatype()==DataType.AUCTION){
+                    System.out.println("Guardou auction em:" + this.node.getNodeId());
                     Service service = (Service) utils.deserialize(request.getData().toByteArray());
                     this.node.setAuctionHouse(service);
                 }

@@ -47,46 +47,6 @@ public class Service implements Serializable{
 
     public void close(String topic){openAuctions.remove(topic);}
 
-    public void broadcast(){
-	if(messages.isEmpty())
-	    System.out.println("No messages from publishers to display");
-	else    //for every message not yet broadcasted
-	    while(!messages.isEmpty()){
-		//remove the message from the queue and retrieve its topic
-		Message message = messages.remove();
-		/*String topic = message.getTopic();
-		//get subscribers to that topic
-		Set<String> topicSubscribers = topicMap.get(topic);
-		//for every subscriber to that topic, add the new message
-		if(topicSubscribers != null)
-		    for(Subscriber subscriber : topicSubscribers){
-			List<Message> subscriberMessages = subscriber.getMessages();
-			subscriberMessages.add(message);
-			subscriber.setMessages(subscriberMessages);
-		    }*/
-	    }
-    }
-
-    public void getMessagesOfTopic(String topic, Subscriber subscriber){
-	/*if(messages.isEmpty())
-	    System.out.println("No messages from publishers to display");
-	else
-	    while(!messages.isEmpty()){
-		Message message = messages.remove();
-
-		if(message.getTopic().equalsIgnoreCase(topic)){
-
-		    Set<Subscriber> topicSubscribers = topicMap.get(topic);
-
-		    for(Subscriber _subscriber : topicSubscribers)
-			if(_subscriber.equals(subscriber)){
-			    List<Message> subscriberMessages = subscriber.getMessages();
-			    subscriberMessages.add(message);
-			    subscriber.setMessages(subscriberMessages);
-			}
-		}
-	    }*/
-    }
 
 	public void retrieveSubscribedMessages(Node node){
 		Subscriber subscriber = node.getSub();

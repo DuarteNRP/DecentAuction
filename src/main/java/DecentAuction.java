@@ -12,6 +12,7 @@ import kademlia.TripleNode;
 import myBlockchain.Chain;
 import myBlockchain.Transaction;
 import myBlockchain.Wallet;
+import pubsubAuction.Auction;
 import pubsubAuction.Item;
 
 import java.io.IOException;
@@ -19,6 +20,7 @@ import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 public class DecentAuction {
@@ -53,7 +55,7 @@ public class DecentAuction {
         test.initializeBootstrapNodes();
         serverService1.start();
         serverService2.start();
-        //test.broadcastInitialBlockChain();
+        test.broadcastInitialBlockChain();
         Node node = serverService1.getServiceNode();
         //st.join(node);
         Node node1 = serverService2.getServiceNode();
@@ -196,13 +198,36 @@ public class DecentAuction {
         list.add(item);
         list.add(new Item("Second Item"));
 
-        n.startNewAuction(list/*, targetNode.getNode()*/);
-        Thread.sleep(1000);
-        targetNode.makeBid("someAuction",targetNode.getAuctionHouse().getOpenAuctions().get("someAuction").getItems().get(0),100/*, n.getNode()*/);
-        Thread.sleep(1000);
-        n.closeAuction("someAuction"/*, targetNode.getNode()*/);
+        n.startNewAuction(list);
         Thread.sleep(1000);
 
+        ArrayList<Item> list1 = new ArrayList<>();
+        list1.add(item);
+        targetNode.startNewAuction(list1);
+        Thread.sleep(1000);
+
+        String topic = "";
+        Map<String, Auction> auctions = targetNode.getAuctionHouse().getOpenAuctions();
+        for(String _topic : auctions.keySet())
+             if(!auctions.get(_topic).getOwner().equals(targetNode.getNodeId()))
+                topic = _topic;
+
+        System.out.println(topic);
+
+        targetNode.makeBid(topic,targetNode.getAuctionHouse().getOpenAuctions().get(topic).getItems().get(0),100);
+        Thread.sleep(1000);
+        System.out.println(targetNode.getAuctionHouse().getOpenAuctions());
+        System.out.println(n.getAuctionHouse().getOpenAuctions());
+
+        n.closeAuction(topic);
+        Thread.sleep(1000);
+
+        for(String _topic : auctions.keySet())
+            if(auctions.get(_topic).getOwner().equals(targetNode.getNodeId()))
+                topic = _topic;
+
+        targetNode.closeAuction(topic);
+        Thread.sleep(1000);
         System.out.println("messages for each node");
         n.retrieveSubscribedMessages();
         targetNode.retrieveSubscribedMessages();

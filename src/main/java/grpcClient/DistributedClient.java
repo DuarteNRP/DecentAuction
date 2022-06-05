@@ -220,10 +220,16 @@ public class DistributedClient {
             }
         };
        try {
+           Ping ping = Ping.newBuilder()
+                   .setNodeId(this.node.getNode().getNodeId())
+                   .setIp(this.node.getNode().getIp())
+                   .setPort(this.node.getNode().getPort())
+                   .build();
             BlockData data = BlockData.newBuilder()
                     .setData(ByteString.copyFrom(arr))
                     .setIdentifier(identifier)
                     .setDatatype(datatype)
+                    .setPing(ping)
                     .build();
 
             asyncStub.broadcast(data,responseObserver);
