@@ -37,8 +37,8 @@ public class Node implements Serializable {
     private int port;
     private TripleNode node;
     private DistributedClient distributedClient;
-    private Publisher pub = new Publisher(this);
-    private Subscriber sub = new Subscriber(this);
+    private Publisher pub;
+    private Subscriber sub;
     public CopyOnWriteArrayList<String> broadcastId = new CopyOnWriteArrayList<>();
 
     //TODO tem de ser o mesmo na rede, aka DHT
@@ -50,6 +50,8 @@ public class Node implements Serializable {
         this.data = new ConcurrentHashMap<>();
         this.wallet = new Wallet();
         BlockChainThread thread = new BlockChainThread("Refresh blockchain and Id list",broadcastId);
+        sub = new Subscriber(this);
+        pub = new Publisher(this);
     }
     public String getHash() {
         return crypto.hash(this.toString());
@@ -289,11 +291,9 @@ public class Node implements Serializable {
         return null;
     }
 
-    //TODO
-    //auction
-    public void startNewAuction(ArrayList<Item> items) throws IOException {
+    public void startNewAuction(ArrayList<Item> items/*, TripleNode target*/) throws IOException {
         //TODO fix name
-        String topic = "hashthis";
+        String topic = "someAuction";
         Auction auction = new Auction(this, items);
         System.out.println("node: "+auctionHouse.getOpenAuctions().size());
         auctionHouse.setAuction(topic, auction);
@@ -303,13 +303,11 @@ public class Node implements Serializable {
         pub.publish(message, auctionHouse);
         sub.subscribe(topic, auctionHouse);
 
-        //TODO
-        auctionHouse.broadcast();
+        //this.distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION, "p00p");
         this.broadcast(utils.serialize(this.auctionHouse),topic,DataType.AUCTION);
-        //broadcast to everyone
     }
 
-    public void makeBid(String topic, Item item, int value) throws IOException {
+    public void makeBid(String topic, Item item, int value/*, TripleNode target*/) throws IOException {
         Message message = new Message(topic, node+" just made a bid for item "+item);
 
         sub.subscribe(topic, auctionHouse);
@@ -318,13 +316,11 @@ public class Node implements Serializable {
         auctionHouse.setAuction(topic, auction);
         pub.publish(message, auctionHouse);
 
-        //TODO
-        //broadcast to subsribers
-        auctionHouse.broadcast();
+        //distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION, "p00p");
         this.broadcast(utils.serialize(this.auctionHouse),topic,DataType.AUCTION);
     }
 
-    public void closeAuction(String topic) throws IOException {
+    public void closeAuction(String topic/*, TripleNode target*/) throws IOException {
         Auction auction = auctionHouse.getAuction(topic);
 
         Map<String, Bid> winners = auction.finish();
@@ -334,15 +330,14 @@ public class Node implements Serializable {
             Message message = new Message(topic, result);
             pub.publish(message, auctionHouse);
         }
+        auctionHouse.close(topic);
 
-        auctionHouse.close(auction);
-
-        //TODO
-        //broadcast to subscribers
-        //commit to blockchain
-        auctionHouse.broadcast();
+        //distributedClient.sendData(utils.serialize(this.auctionHouse),target,DataType.AUCTION, "p00p");
         this.broadcast(utils.serialize(this.auctionHouse),topic,DataType.AUCTION);
-    }        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(constraints.K);
+    }
+    public void retrieveSubscribedMessages(){auctionHouse.retrieveSubscribedMessages(this);}
+
+    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(constraints.K);
     public void broadcast(byte[] arr, String identifier, DataType dataType){
         ArrayList<TripleNode> allNodes= allNodes(this.routingtable.getRootBinaryTreeNode());
         for(int i=0;i<allNodes.size();i++) {
@@ -359,5 +354,11 @@ public class Node implements Serializable {
         ArrayList<TripleNode> right = allNodes(root.getRight());
         left.addAll(right);
         return left;
+    }
+
+    public void print() {
+        System.out.println("==========================================");
+        sub.printMessages();
+        System.out.println("==========================================");
     }
 }

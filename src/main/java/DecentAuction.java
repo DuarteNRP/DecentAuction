@@ -53,7 +53,7 @@ public class DecentAuction {
         test.initializeBootstrapNodes();
         serverService1.start();
         serverService2.start();
-        test.broadcastInitialBlockChain();
+        //test.broadcastInitialBlockChain();
         Node node = serverService1.getServiceNode();
         //st.join(node);
         Node node1 = serverService2.getServiceNode();
@@ -62,7 +62,7 @@ public class DecentAuction {
         node.tryToAddNode(testTripleNode);
         //test.testBroadcast(node);
         //test.testSendTransaction(node,testTripleNode,bootstrapNodes.get(0).getServiceNode());
-        //test.testSimpleAuction(node,testTripleNode,node1);
+        test.testSimpleAuction(node,testTripleNode,node1);
         //test.testTryAddNode(node);
         //test.testTryAddNode(node1);
         //test.testFindKClosest(node,serverService2.getServiceTripleNode());
@@ -195,15 +195,25 @@ public class DecentAuction {
         ArrayList<Item> list = new ArrayList<>();
         list.add(item);
         list.add(new Item("Second Item"));
-        n.startNewAuction(list);
+
+        n.startNewAuction(list/*, targetNode.getNode()*/);
         Thread.sleep(1000);
-        System.out.println(targetNode.getAuctionHouse().getOpenAuctions().get("hashthis"));
-        targetNode.makeBid("hashthis",targetNode.getAuctionHouse().getOpenAuctions().get("hashthis").getItems().get(0),100);
+        targetNode.makeBid("someAuction",targetNode.getAuctionHouse().getOpenAuctions().get("someAuction").getItems().get(0),100/*, n.getNode()*/);
         Thread.sleep(1000);
-        n.closeAuction("hashthis");
+        n.closeAuction("someAuction"/*, targetNode.getNode()*/);
         Thread.sleep(1000);
-        n.getAuctionHouse().getMessagesOfTopic("hashthis",n.getSub());
-        targetNode.getAuctionHouse().getMessagesOfTopic("hashthis",targetNode.getSub());
+
+        System.out.println("messages for each node");
+        n.retrieveSubscribedMessages();
+        targetNode.retrieveSubscribedMessages();
+        n.print();
+        targetNode.print();
+
+        System.out.println("messages inside auction house of each node, they should be the same");
+        n.getAuctionHouse().printAll();
+        targetNode.getAuctionHouse().printAll();
+
+        System.out.println("At the end the open auctions should be empty");
         System.out.println(n.getAuctionHouse().getOpenAuctions());
         System.out.println(targetNode.getAuctionHouse().getOpenAuctions());
     }

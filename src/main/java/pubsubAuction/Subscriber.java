@@ -9,20 +9,20 @@ public class Subscriber implements Serializable{
 
     private String nodeId;
 
-    private List<Message> messages = new LinkedList<>();
+    private Set<Message> messages = new LinkedHashSet<>();
 
     public Subscriber(Node node){this.nodeId = node.getNodeId();}
 
-    public List<Message> getMessages(){return messages;}
+    public Set<Message> getMessages(){return messages;}
 
-    public void setMessages(List<Message> messages){
+    public void setMessages(Set<Message> messages){
 	this.messages = messages;}
 
     public void subscribe(String topic, Service service){
-	service.addSubscriber(topic, this);}
+	service.addSubscriber(nodeId, topic);}
 
     public void unsubscribe(String topic, Service service){
-	service.removeSubscriber(topic, this);}
+	service.removeSubscriber(nodeId, topic);}
 
     public void getMessagesOfTopic(String topic, Service service){
 	service.getMessagesOfTopic(topic, this);}
