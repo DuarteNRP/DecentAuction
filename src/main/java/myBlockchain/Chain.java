@@ -21,15 +21,13 @@ public class Chain implements Serializable {
     public static Wallet walletB;
     public static Transaction genesisTransaction;
     public static long numberOfBlocks=0;
-    public Chain() {
+    public Chain(Transaction transaction) throws Exception {
+        Block firstBlock= new Block("0");
+        firstBlock.addTransaction(transaction);
         this.append(new Block("0"));
-        numberOfBlocks=1;
     }
     public void append(Block block) {
-        if (this.blockchain.size() != 0)
-            block.setPreviousHash(this.getLastBlock().getActualHash());
-        block.mineBlock();
-        this.blockchain.add(block);
+        blockchain.add(block);
         numberOfBlocks+=1;
     }
     public Block getLastBlock() {
@@ -52,6 +50,7 @@ public class Chain implements Serializable {
         Block genesis = new Block("0");
         genesis.addTransaction(genesisTransaction);
         addBlock(genesis);
+        System.out.println(blockchain.size());
         //testing
         Block block1 = new Block(genesis.actualHash);
         System.out.println("\nWalletA's balance is: " + walletA.getBalance());

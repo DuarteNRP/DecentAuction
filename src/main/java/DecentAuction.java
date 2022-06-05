@@ -11,6 +11,7 @@ import kademlia.Node;
 import kademlia.TripleNode;
 import myBlockchain.Chain;
 import myBlockchain.Transaction;
+import myBlockchain.TransactionOutput;
 import myBlockchain.Wallet;
 import pubsubAuction.Auction;
 import pubsubAuction.Item;
@@ -28,7 +29,7 @@ public class DecentAuction {
     private static final Crypto cripto = new Crypto();
     private static final Constraints constraints = new Constraints();
     public static ArrayList<ServerService> bootstrapNodes = new ArrayList<>();
-    public static Chain initialBlockChain = new Chain();
+    public static Chain initialBlockChain;
     static final ServerService serverService1;
 
     static {
@@ -49,15 +50,16 @@ public class DecentAuction {
         }
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException, NoSuchAlgorithmException {
+    public static void main(String[] args) throws Exception {
         //test kademlia buckets
         DecentAuction test = new DecentAuction();
         test.initializeBootstrapNodes();
         serverService1.start();
         serverService2.start();
-        test.broadcastInitialBlockChain();
         Node node = serverService1.getServiceNode();
-        //st.join(node);
+        test.setInitialBlockChain(node);
+        test.broadcastInitialBlockChain();
+        test.join(node);
         Node node1 = serverService2.getServiceNode();
         TripleNode testTripleNode = node1.getNode();
         //test.join(node1);
@@ -76,25 +78,37 @@ public class DecentAuction {
         serverService2.blockUntilShutdown();
         finalizeBootstrapNodes();
     }
+    public static void setInitialBlockChain(Node node) throws Exception {
+        Wallet A = bootstrapNodes.get(0).getServiceNode().getWallet();
+        Wallet B = node.getWallet();
+        Transaction genesisTransaction = new Transaction(A.publicKey, B.publicKey, 100f, null);
+        genesisTransaction.setSignature(A.privateKey);
+        genesisTransaction.transactionId = "0";
+        genesisTransaction.outputs.add(new TransactionOutput(genesisTransaction.receiver, genesisTransaction.amount, genesisTransaction.transactionId));
+        genesisTransaction.outputs.add(new TransactionOutput(genesisTransaction.sender,50f,genesisTransaction.transactionId));
+        initialBlockChain= new Chain(genesisTransaction);
+        initialBlockChain.UTXOs.put(genesisTransaction.outputs.get(0).id, genesisTransaction.outputs.get(0));
+        initialBlockChain.UTXOs.put(genesisTransaction.outputs.get(1).id, genesisTransaction.outputs.get(1));
+    }
     public static void initializeBootstrapNodes() throws IOException, NoSuchAlgorithmException {
         //5 nodes to mitigate eclipse attack
-        for(int i=0;i<4;i++){
+        for(int i=0;i<constraints.BOOTSTRAP_NODES;i++){
             bootstrapNodes.add(new ServerService("localhost",5000+i));
             System.out.println("Created bootstrap with id: "+bootstrapNodes.get(i).getServiceNode().getNodeId());
             bootstrapNodes.get(i).start();
         }
-        for(int i=0;i<4;i++){
-            for(int j=0;j<4;j++){
+        for(int i=0;i<constraints.BOOTSTRAP_NODES;i++){
+            for(int j=0;j<constraints.BOOTSTRAP_NODES;j++){
                 bootstrapNodes.get(i).getServiceNode().tryToAddNode(bootstrapNodes.get(j).getServiceTripleNode());
             }
         }
-        for(int i=0;i<4;i++){
+        for(int i=0;i<constraints.BOOTSTRAP_NODES;i++){
             bootstrapNodes.get(i).getServiceNode().printRouteTable();
         }
     }
     public static void finalizeBootstrapNodes() throws InterruptedException {
         //5 nodes to mitigate eclipse attack
-        for(int i=0;i<4;i++){
+        for(int i=0;i<3;i++){
             bootstrapNodes.get(i).blockUntilShutdown();
         }
     }
@@ -103,14 +117,14 @@ public class DecentAuction {
             System.out.println(s.getServiceNode().getNodeId()+","+s.getServiceNode().chain);
         }
         bootstrapNodes.get(0).getServiceNode().broadcast(utils.serialize(initialBlockChain), initialBlockChain.getBlockChainHash(),DataType.BLOCKCHAIN);
-        Thread.sleep(1000);
+        Thread.sleep(3000);
         for(ServerService s :bootstrapNodes){
             System.out.println(s.getServiceNode().getNodeId()+","+s.getServiceNode().chain.getBlockChainHash());
         }
     }
     public static void join(Node node) throws InterruptedException {
         Random generator = new Random();
-        int random = generator.nextInt(4);
+        int random = generator.nextInt(constraints.BOOTSTRAP_NODES);
         System.out.println("Escolheu nó " + random + " como bootstrap: ");
         node.tryToAddNode(bootstrapNodes.get(random).getServiceTripleNode());
         node.printRouteTable();
@@ -146,7 +160,7 @@ public class DecentAuction {
         utils.printTriples(node.findKClosestNodes(triple));
         return node.findKClosestNodes(triple);
     }
-    public void testPing(Node node,TripleNode tripleNode) throws InterruptedException {
+    public void testPing(Node node,TripleNode tripleNode) throws InterruptedException, IOException {
         node.pingNode(tripleNode);
         int port=tripleNode.getPort();
         tripleNode.setPort(2);
@@ -161,14 +175,14 @@ public class DecentAuction {
         System.out.println("pritn kclosestnodes");
         System.out.println(foundNodes);
     }
-    public void testStore(Node node,TripleNode target,Node targetNode) throws InterruptedException {
+    public void testStore(Node node,TripleNode target,Node targetNode) throws InterruptedException, IOException {
         byte[] value = "block data".getBytes();
         node.store(target,target.getNodeId(),value);
         //wait to insert value
         Thread.sleep(2000);
         System.out.println("Value inserted an it is: "+ new String(targetNode.getData().get(target.getNodeId())));
     }
-    public void testFindValue(Node node,TripleNode target) throws InterruptedException {
+    public void testFindValue(Node node,TripleNode target) throws InterruptedException, IOException {
         byte[] value = node.findValue(target.getNodeId());
         if(value!=null){
             System.out.println("Value founded and it is: "+new String(value));
@@ -192,30 +206,28 @@ public class DecentAuction {
             System.out.println(s.getServiceNode().broadcastId.contains("test"));
         }
     }
-    public void testSimpleAuction(Node n,TripleNode target,Node targetNode) throws IOException, InterruptedException {
+    public void testSimpleAuction(Node n,TripleNode target,Node targetNode) throws Exception {
         Item item = new Item("first Item");
         ArrayList<Item> list = new ArrayList<>();
         list.add(item);
         list.add(new Item("Second Item"));
 
         n.startNewAuction(list);
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
         ArrayList<Item> list1 = new ArrayList<>();
         list1.add(item);
         targetNode.startNewAuction(list1);
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
         String topic = "";
         Map<String, Auction> auctions = targetNode.getAuctionHouse().getOpenAuctions();
         for(String _topic : auctions.keySet())
              if(!auctions.get(_topic).getOwner().equals(targetNode.getNodeId()))
                 topic = _topic;
-
-        System.out.println(topic);
-
-        targetNode.makeBid(topic,targetNode.getAuctionHouse().getOpenAuctions().get(topic).getItems().get(0),100);
-        Thread.sleep(1000);
+        float value = bootstrapNodes.get(0).getServiceNode().wallet.getBalance();
+        bootstrapNodes.get(0).getServiceNode().makeBid(topic,targetNode.getAuctionHouse().getOpenAuctions().get(topic).getItems().get(0),value/2);
+        Thread.sleep(2000);
         System.out.println(targetNode.getAuctionHouse().getOpenAuctions());
         System.out.println(n.getAuctionHouse().getOpenAuctions());
 

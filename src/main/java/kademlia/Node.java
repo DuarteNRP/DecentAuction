@@ -5,6 +5,7 @@ import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Consumer;
 
 import ServiceGRPC.Data;
 import ServiceGRPC.DataType;
@@ -22,11 +23,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @Getter
 @Setter
 public class Node implements Serializable {
+    Random generator = new Random();
     public Wallet wallet;
     public ConcurrentHashMap<String,byte[]> data;
-    public ArrayList<Transaction> transactionPool = null;
+    public CopyOnWriteArrayList<Transaction> transactionPool;
     public Block block = null;
     public Chain chain = null;
+    public Mining miningThread;
+    public int mining;
     public RoutingTable routingtable;
     private static final Crypto crypto = new Crypto();
     private static final Utils utils = new Utils();
@@ -44,6 +48,8 @@ public class Node implements Serializable {
     //TODO tem de ser o mesmo na rede, aka DHT
     public Service auctionHouse = new Service();
     public Node(TripleNode node) throws NoSuchAlgorithmException {
+        transactionPool= new CopyOnWriteArrayList<>();
+        this.mining =generator.nextInt(2);
         this.node=node;
         this.nodeId=node.getNodeId();
         this.routingtable = new RoutingTable(node);
@@ -213,7 +219,7 @@ public class Node implements Serializable {
         this.routingtable.printRouteTable();
 
     }
-    public void pingNode(TripleNode tripleNode) throws InterruptedException {
+    public void pingNode(TripleNode tripleNode) throws InterruptedException, IOException {
         this.distributedClient.sendPing(tripleNode);
     }
     public ArrayList<TripleNode> findNode(TripleNode tripleNode) throws InterruptedException {
@@ -253,7 +259,7 @@ public class Node implements Serializable {
                     if(!target.getIp().equals("")) {
                         try {
                             distributedClient.findNode(closestNodes,tripleNode,target);
-                        } catch (InterruptedException e) {
+                        } catch (InterruptedException | IOException e) {
                             throw new RuntimeException(e);
                         }
                     }
@@ -261,6 +267,8 @@ public class Node implements Serializable {
                         try {
                             distributedClient.findValue(closestNodes,tripleNode,target.getNodeId());
                         } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
                     }
@@ -277,10 +285,10 @@ public class Node implements Serializable {
         while(!executor.isTerminated()){}
     }
     //find node sem ser paralelo, acho que o outro já está a funcionar
-    public void store(TripleNode target,String key,byte[] value) throws InterruptedException {
+    public void store(TripleNode target,String key,byte[] value) throws InterruptedException, IOException {
         distributedClient.storeValue(target,key,value,this.node);
     }
-    public byte[] findValue(String key) throws InterruptedException {
+    public byte[] findValue(String key) throws InterruptedException, IOException {
         ArrayList<TripleNode> tripleNodes=this.findNode(new TripleNode(key,"",0));
         if(this.getData().containsKey(key)) {
             for (TripleNode tripleNode : tripleNodes) {
@@ -308,12 +316,13 @@ public class Node implements Serializable {
         this.broadcast(utils.serialize(this.auctionHouse),identifier,DataType.AUCTION);
     }
 
-    public void makeBid(String topic, Item item, int value) throws IOException {
+    public void makeBid(String topic, Item item, float value) throws IOException {
         Message message = new Message(topic, node+" just made a bid for item "+item);
 
         sub.subscribe(topic, auctionHouse);
         Auction auction = auctionHouse.getAuction(topic);
         auction.bid(this, item, value);
+        System.out.println("this:" +this.wallet.getBalance());
         auctionHouse.setAuction(topic, auction);
         pub.publish(message, auctionHouse);
         auctionHouse.printAll();
@@ -322,7 +331,7 @@ public class Node implements Serializable {
         this.broadcast(utils.serialize(this.auctionHouse),identifier,DataType.AUCTION);
     }
 
-    public void closeAuction(String topic) throws IOException {
+    public void closeAuction(String topic) throws Exception {
         Auction auction = auctionHouse.getAuction(topic);
 
         Map<String, Bid> winners = auction.finish();
@@ -331,16 +340,22 @@ public class Node implements Serializable {
             String result = bid.getBidder()+" won item "+bid.getItem();
             Message message = new Message(topic, result);
             pub.publish(message, auctionHouse);
+            String hash=crypto.hash(String.valueOf(new Date().getTime())+result);
+            System.out.println("bid.getBid:"+bid.getWallet().getBlockchain());
+            this.broadcast(utils.serialize(bid.getWallet().sendFunds(
+                    this.wallet.publicKey, bid.getBid())),hash,DataType.TRANSACTION);
+            Thread.sleep(2000);
         }
         auctionHouse.close(topic);
 
         String identifier = crypto.hash(String.valueOf(new Date().getTime()));
         this.broadcast(utils.serialize(this.auctionHouse),identifier,DataType.AUCTION);
+
     }
     public void retrieveSubscribedMessages(){auctionHouse.retrieveSubscribedMessages(this);}
 
     ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(constraints.K);
-    public void broadcast(byte[] arr, String identifier, DataType dataType){
+    public void broadcast(byte[] arr, String identifier, DataType dataType) throws IOException {
         ArrayList<TripleNode> allNodes= allNodes(this.routingtable.getRootBinaryTreeNode());
         for(int i=0;i<allNodes.size();i++) {
             distributedClient.sendData(arr, allNodes.get(i), dataType, identifier);
@@ -362,5 +377,14 @@ public class Node implements Serializable {
         System.out.println("==========================================");
         sub.printMessages();
         System.out.println("==========================================");
+    }
+    public void handlerNewTransaction(){
+        miningThread = new Mining("mining",this.chain,this.transactionPool,this);
+        miningThread.start();
+    }
+    public void handlerNewBlock(){
+        if(!miningThread.check) {
+            miningThread.check=false;
+        }
     }
 }

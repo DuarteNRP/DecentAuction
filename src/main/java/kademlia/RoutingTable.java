@@ -1,14 +1,16 @@
 package kademlia;
+import com.sun.source.doctree.SerialDataTree;
 import config.Constraints;
 import grpcClient.DistributedClient;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 @Getter
 @Setter
-public class RoutingTable {
+public class RoutingTable implements Serializable {
     public static Constraints constraints = new Constraints();
     public long numberOfContacts;
     private TripleNode node;

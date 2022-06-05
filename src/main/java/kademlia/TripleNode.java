@@ -6,10 +6,11 @@ import grpcClient.DistributedClient;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.Date;
 @Getter
 @Setter
-public class TripleNode {
+public class TripleNode implements Serializable {
     public static Crypto crypto = new Crypto();
     private static final Utils utils = new Utils();
     private String nodeId;

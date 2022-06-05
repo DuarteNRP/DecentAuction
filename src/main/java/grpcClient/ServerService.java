@@ -166,7 +166,7 @@ public class ServerService{
             TripleNode tripleNode = new TripleNode(request.getPing().getNodeId(), request.getPing().getIp(), request.getPing().getPort());
             this.node.tryToAddNode(tripleNode);
             if(this.node.broadcastId.contains(request.getIdentifier())){
-                System.out.println("Nó para Não guardar"+this.node.getNodeId());
+                //System.out.println("Nó para Não guardar"+this.node.getNodeId());
                 responseObserver.onNext(Empty.newBuilder().build());
                 responseObserver.onCompleted();
                 return;
@@ -175,32 +175,41 @@ public class ServerService{
             //System.out.println("Nó para guardar"+this.node.getNodeId());
             try {
                 if(request.getDatatype()==DataType.BLOCK) {
+                    this.node.handlerNewBlock();
                     myBlockchain.Block b = (myBlockchain.Block) utils.deserialize(request.getData().toByteArray());
                     this.node.setBlock(b);
-                    System.out.println("Guardou bloco em:" +this.node.getNodeId());
+                    this.node.getChain().append(b);
+                    //System.out.println("Guardou bloco em:" +this.node.getNodeId());
                 }
                 else if(request.getDatatype()==DataType.TRANSACTION) {
                     myBlockchain.Transaction t = (myBlockchain.Transaction) utils.deserialize(request.getData().toByteArray());
                     this.node.getTransactionPool().add(t);
-
-                    System.out.println("Guardou transaçao em:" +this.node.getNodeId()+" , identifier: "+request.getIdentifier());
+                    //System.out.println("Guardou transaçao em:" +this.node.getNodeId()+" , identifier: "+request.getIdentifier());
+                    if(this.node.transactionPool.size()>constraints.MAX_TRANSACTIONS_PER_BLOCK){
+                        this.node.handlerNewBlock();
+                    }
                 }
                 else if(request.getDatatype()==DataType.BLOCKCHAIN) {
                     Chain c = (myBlockchain.Chain) utils.deserialize(request.getData().toByteArray());
                     if(this.node.getChain()==null || this.node.getChain().blockchain.size()<c.blockchain.size()) {
                         this.node.setChain(c);
-                        System.out.println("Guardou blockchain em:" + this.node.getNodeId());
+                        //System.out.println("Guardou blockchain em:" + this.node.getNodeId());
+                        this.node.wallet.setBlockchain(c);
                     }
                 }
                 else if(request.getDatatype()==DataType.AUCTION){
-                    System.out.println("Guardou auction em:" + this.node.getNodeId());
+                    //System.out.println("Guardou auction em:" + this.node.getNodeId());
                     Service service = (Service) utils.deserialize(request.getData().toByteArray());
                     this.node.setAuctionHouse(service);
                 }
                 Context ctx = Context.current().fork();
                 // Set ctx as the current context within the Runnable
                 ctx.run(() -> {
-                    this.node.broadcast(request.getData().toByteArray(),request.getIdentifier(),request.getDatatype());
+                    try {
+                        this.node.broadcast(request.getData().toByteArray(),request.getIdentifier(),request.getDatatype());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 });
                 responseObserver.onNext(Empty.newBuilder().build());
                 responseObserver.onCompleted();

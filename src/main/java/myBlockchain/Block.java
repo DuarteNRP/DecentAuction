@@ -36,19 +36,22 @@ public class Block implements Serializable {
                         merkleRoot
         );
     }
-    public void mineBlock() {
+    public boolean mineBlock() {
         merkleRoot = utils.getMerkleRoot(transactions);
-        String target = new String(new char[constraints.MINING_DIFFICULTY]).replace('\0', '0'); //Create a string with difficulty * "0"
+        String target = new String(new char[constraints.MINING_DIFFICULTY]).replace('\0', '0');
+        if(actualHash.substring( 0, constraints.MINING_DIFFICULTY).equals(target))
+            return true;
         while(!actualHash.substring( 0, constraints.MINING_DIFFICULTY).equals(target)) {
             nonce ++;
             actualHash = calculateHash();
         }
         System.out.println("Block Mined!!! : " + actualHash);
+        return false;
     }
     public boolean addTransaction(Transaction transaction) throws Exception {
         //process transaction and check if valid, unless block is genesis block then ignore.
         if(transaction == null) return false;
-        if((previousHash != "0")) {//genesis block, we dont want trasactions in genesis block
+        if((previousHash != "0")) {
             if((transaction.processTransaction() != true)) {
                 System.out.println("Transaction failed to process. Discarded.");
                 return false;

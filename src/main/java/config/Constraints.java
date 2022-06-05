@@ -9,11 +9,12 @@ public class Constraints {
 
     public static final float COIN_REWARD = 0.01f;
     public static final float TRANSACTION_FEE = 0.01f;
+    public static final int BOOTSTRAP_NODES =3;
 
     /*
     Sets the max amount of transactions per block
      */
-    public static final int MAX_TRANSACTIONS_PER_BLOCK = 10;
+    public static final int MAX_TRANSACTIONS_PER_BLOCK = 1;
     /*
     kademlia constraints
      */

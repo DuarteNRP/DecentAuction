@@ -39,24 +39,27 @@ public class DistributedClient {
     public Node node;
     public ManagedChannel channel;
     public ConcurrentHashMap<String,ManagedChannel> cachedChannel= new ConcurrentHashMap<>();
-    /*private ManagedChannel channel;
-    private P2PServiceGrpc.P2PServiceBlockingStub blockingStub;
-    private P2PServiceGrpc.P2PServiceStub asyncStub;*/
     public DistributedClient(String ip, int port){
         this.ip=ip;
         this.port=port;
     }
-    public P2PServiceGrpc.P2PServiceStub newAsyncStub(TripleNode node){
-        if(cachedChannel.contains(node.getNodeId())){
-            return P2PServiceGrpc.newStub(cachedChannel.get(node.getNodeId()));
+    public P2PServiceGrpc.P2PServiceStub newAsyncStub(TripleNode node) throws IOException {
+        ManagedChannel channel = cachedChannel.get(node.getNodeId());
+        if (channel == null || channel.isShutdown() || channel.isTerminated()) {
+            channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
+                    // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
+                    // needing certificates.
+                    .usePlaintext()
+                    .build();
+
+            cachedChannel.put(node.getNodeId(), channel);
+
+            return P2PServiceGrpc.newStub(channel);
+        } else if (!channel.isTerminated() && !channel.isShutdown()) {
+            return P2PServiceGrpc.newStub(channel);
         }
-        channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
-                // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
-                // needing certificates.
-                .usePlaintext()
-                .build();
-        cachedChannel.put(node.getNodeId(),channel);
-        return P2PServiceGrpc.newStub(channel);
+        System.out.println("Failed to connect to the IP: " + node.getNodeId());
+        return null;
     }
     public P2PServiceGrpc.P2PServiceBlockingStub newBlockingStub(TripleNode node){
         ManagedChannel channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
@@ -75,7 +78,7 @@ public class DistributedClient {
         }
     }
     //use Node ID to ping node
-    public void sendPing(TripleNode node) throws InterruptedException {
+    public void sendPing(TripleNode node) throws InterruptedException, IOException {
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Ping> responseObserver = new StreamObserver<Ping>(){
             @Override
@@ -102,7 +105,7 @@ public class DistributedClient {
         }
 
     }
-    public void findNode(List<TripleNode> list,TripleNode node,TripleNode target) throws InterruptedException {
+    public void findNode(List<TripleNode> list,TripleNode node,TripleNode target) throws InterruptedException, IOException {
         Node n=this.node;
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<KBucket> responseObserver = new StreamObserver<KBucket> (){
@@ -133,7 +136,7 @@ public class DistributedClient {
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }
     }
-    public void storeValue(TripleNode node, String key, byte[] value,TripleNode tripleNode) throws InterruptedException {
+    public void storeValue(TripleNode node, String key, byte[] value,TripleNode tripleNode) throws InterruptedException, IOException {
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Empty> responseObserver = new StreamObserver<Empty> (){
             @Override
@@ -166,7 +169,7 @@ public class DistributedClient {
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }
     }
-    public void findValue(List<TripleNode> list,TripleNode node, String key) throws InterruptedException {
+    public void findValue(List<TripleNode> list,TripleNode node, String key) throws InterruptedException, IOException {
         Node n = this.node;
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Found> responseObserver = new StreamObserver<Found> (){
@@ -202,7 +205,7 @@ public class DistributedClient {
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
         }
     }
-    public void sendData(byte[] arr, TripleNode node, DataType datatype,String identifier){
+    public void sendData(byte[] arr, TripleNode node, DataType datatype,String identifier) throws IOException {
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Empty> responseObserver = new StreamObserver<Empty> (){
             @Override
@@ -234,6 +237,7 @@ public class DistributedClient {
 
             asyncStub.broadcast(data,responseObserver);
         } catch(StatusRuntimeException e){
+           System.out.println("entrou aqui!!!");
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
        }
     }

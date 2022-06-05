@@ -5,10 +5,11 @@ import grpcClient.DistributedClient;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 @Getter
 @Setter
-public class Bucket {
+public class Bucket implements Serializable {
     public static Constraints constraints = new Constraints();
     private ArrayList<TripleNode> kBucket;
     public Bucket() {

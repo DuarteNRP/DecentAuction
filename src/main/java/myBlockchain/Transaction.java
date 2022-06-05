@@ -19,6 +19,7 @@ public class Transaction implements Serializable {
 
     public ArrayList<TransactionInput> inputs = new ArrayList<TransactionInput>();
     public ArrayList<TransactionOutput> outputs = new ArrayList<TransactionOutput>();
+    private Chain blockchain;
     //count how many transactions have been made
     private static int numberTransation=0;
 
@@ -52,11 +53,11 @@ public class Transaction implements Serializable {
         }
         //gather transaction inputs (Make sure they are unspent):
         for(TransactionInput i : inputs) {
-            i.UTXO = Chain.UTXOs.get(i.transactionOutputId);
+            i.UTXO = blockchain.UTXOs.get(i.transactionOutputId);
         }
 
         //check if transaction is valid:
-        if(getInputsValue() < Chain.minimumTransaction) {
+        if(getInputsValue() < blockchain.minimumTransaction) {
             System.out.println("#Transaction Inputs to small: " + getInputsValue());
             return false;
         }
@@ -69,13 +70,13 @@ public class Transaction implements Serializable {
 
         //add outputs to Unspent list
         for(TransactionOutput o : outputs) {
-            Chain.UTXOs.put(o.id , o);
+            blockchain.UTXOs.put(o.id , o);
         }
 
         //remove transaction inputs from UTXO lists as spent:
         for(TransactionInput i : inputs) {
             if(i.UTXO == null) continue; //if Transaction can't be found skip it
-            Chain.UTXOs.remove(i.UTXO.id);
+            blockchain.UTXOs.remove(i.UTXO.id);
         }
 
         return true;
