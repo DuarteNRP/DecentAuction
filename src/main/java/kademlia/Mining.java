@@ -23,26 +23,32 @@ public class Mining extends Thread implements Serializable {
         this.blockchain=blockchain;
         this.transactions=transactions;
         this.node=n;
+        System.out.println("nodeee:"+n);
         this.check=true;
     }
 
     public void run() {
         Block newBlock = new Block(this.blockchain.getLastBlock().getActualHash());
-        for(int i=0;i<constraints.MAX_TRANSACTIONS_PER_BLOCK;i++){
+        for(int i=0;i<constraints.MAX_TRANSACTIONS_PER_BLOCK;i++) {
             try {
                 newBlock.addTransaction(this.transactions.get(i));
-                newBlock.mineBlock();
-                if(check) {
-                    System.out.println("node: "+node.getNodeId());
-                    this.n.broadcast(Utils.serialize(newBlock), newBlock.actualHash, DataType.BLOCK);
-                    for(Transaction t : newBlock.getTransactions()){
-                        transactions.remove(t);
-                    }
-                }
-
             } catch (Exception e) {
                 throw new RuntimeException(e);
+            }
+            newBlock.mineBlock();
+            if (check) {
+                System.out.println("node: " + this.n);
+                try {
+                    this.n.broadcast(Utils.serialize(newBlock), newBlock.actualHash, DataType.BLOCK);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                System.out.println("chegou");
+                for (Transaction t : newBlock.getTransactions()) {
+                    transactions.remove(t);
+                }
             }
         }
     }
 }
+

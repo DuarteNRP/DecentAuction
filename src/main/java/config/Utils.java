@@ -96,7 +96,6 @@ public class Utils {
         }
     }
     public static byte[] serialize(Object obj) throws IOException {
-        System.out.println("entrou");
         Gson gson = new GsonBuilder().serializeNulls().create();
         String jsonMessage = gson.toJson(obj);
         return getBytesFromString(jsonMessage);

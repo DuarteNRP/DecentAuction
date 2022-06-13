@@ -200,25 +200,35 @@ public class ServerService implements Serializable {
             this.node.broadcastId.add(request.getIdentifier());
             //System.out.println("Nó para guardar"+this.node.getNodeId());
                 if(request.getDatatype()==DataType.BLOCK) {
-                    this.node.handlerNewBlock();;
+                    this.node.handlerNewBlock();
                     Block b = new GsonBuilder().create().fromJson(utils.getStringFromBytes(request.getData().toByteArray()),Block.class);
                     this.node.setBlock(b);
                     this.node.getChain().append(b);
-                    System.out.println("Block received");
+                    //System.out.println("Block received");
                 }
                 else if(request.getDatatype()==DataType.TRANSACTION) {
                     Transaction t = new GsonBuilder().create().fromJson(utils.getStringFromBytes(request.getData().toByteArray()),Transaction.class);
                     this.node.getTransactionPool().add(t);
-                    System.out.println("Transaction received");
+                    //System.out.println("Transaction received");
                     if(this.node.transactionPool.size()>=constraints.MAX_TRANSACTIONS_PER_BLOCK){
-                        this.node.handlerNewTransaction();
+                        Context ctx = Context.current().fork();
+                        // Set ctx as the current context within the Runnable
+                        ctx.run(() -> {
+                            this.node.handlerNewTransaction();
+                        });
                     }
                 }
                 else if(request.getDatatype()==DataType.BLOCKCHAIN) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     Chain c = new GsonBuilder().create().fromJson(utils.getStringFromBytes(request.getData().toByteArray()),Chain.class);
-                    if(this.node.getChain()==null || this.node.getChain().blockchain.size()<c.blockchain.size()) {
+                    if(this.node.getChain().blockchain.size()<c.blockchain.size()) {
+                        this.node.handlerNewBlock();
                         this.node.setChain(c);
-                        System.out.println("blockchain received");
+                        //System.out.println("blockchain received");
                         this.node.wallet.setBlockchain(c);
                     }
                 }

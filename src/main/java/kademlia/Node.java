@@ -27,11 +27,12 @@ public class Node implements Serializable {
     Random generator = new Random();
     public Wallet wallet;
     public ConcurrentHashMap<String,byte[]> data;
+    public Node instance;
     public CopyOnWriteArrayList<Transaction> transactionPool;
     public Block block = null;
     public Chain chain = null;
     public Mining miningThread;
-    public int mining;
+    public int mining=0;
     public RoutingTable routingtable;
     private static final Crypto crypto = new Crypto();
     private static final Utils utils = new Utils();
@@ -59,6 +60,7 @@ public class Node implements Serializable {
         BlockChainThread thread = new BlockChainThread("Refresh blockchain and Id list",broadcastId);
         sub = new Subscriber(this);
         pub = new Publisher(this);
+        instance=this;
     }
     public String getHash() {
         return crypto.hash(this.toString());
@@ -344,8 +346,10 @@ public class Node implements Serializable {
             Wallet wallet = this.distributedClient.askWallet(tripleNode);
             //System.out.println(wallet.getBalance());
             //System.out.println(Utils.bytesToPublicKey(wallet.publicKey));
-            this.broadcast(utils.serialize(wallet.sendFunds(
-                    this.wallet.publicKey, bid.getBid())),hash,DataType.TRANSACTION);
+            Transaction transaction = wallet.sendFunds(
+                    this.wallet.publicKey, bid.getBid());
+            if(transaction!=null)
+                this.broadcast(utils.serialize(transaction),hash,DataType.TRANSACTION);
             Thread.sleep(2000);
         }
         auctionHouse.close(topic);
@@ -357,7 +361,7 @@ public class Node implements Serializable {
     public void retrieveSubscribedMessages(){auctionHouse.retrieveSubscribedMessages(this);}
 
     public void broadcast(byte[] arr, String identifier, DataType dataType) throws IOException {
-        System.out.println("entrou broadcast");
+        //System.out.println("Data type:"+dataType+", broadcast identifier:"+identifier);
         ArrayList<TripleNode> allNodes= allNodes(this.routingtable.getRootBinaryTreeNode());
         for(int i=0;i<allNodes.size();i++) {
             distributedClient.sendData(arr, allNodes.get(i), dataType, identifier);
@@ -381,16 +385,37 @@ public class Node implements Serializable {
         System.out.println("==========================================");
     }
     public void handlerNewTransaction(){
-        miningThread = new Mining("mining",this.chain,this.transactionPool,this);
-        miningThread.start();
+        int size= this.chain.blockchain.size();
+        mining=1;
+        Block newBlock = new Block(this.chain.getLastBlock().getActualHash());
+        for(int i=0;i<constraints.MAX_TRANSACTIONS_PER_BLOCK;i++) {
+            try {
+                newBlock.addTransaction(this.getTransactionPool().get(i));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            newBlock.mineBlock();
+                try {
+                    if (mining==1 && size==this.chain.blockchain.size()) {
+                        this.chain.append(newBlock);
+                        this.broadcast(Utils.serialize(this.chain), newBlock.actualHash, DataType.BLOCKCHAIN);
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                if(mining==1)
+                for (Transaction t : newBlock.getTransactions()) {
+                    this.getTransactionPool().remove(t);
+                }
+        }
     }
     public void handlerNewBlock(){
-        if(miningThread!= null){
-            miningThread.check=false;
-            miningThread.interrupt();
-        }
+        mining=0;
     }
     public void askMessages(TripleNode tripleNode) throws IOException {
         this.distributedClient.askMessage(tripleNode);
+    }
+    public Node getInstance() {
+        return instance;
     }
 }

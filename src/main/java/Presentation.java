@@ -56,7 +56,7 @@ public class Presentation{
         boolean flag=false;
         System.out.println();
         while(true){
-            System.out.println("Choose one option:");
+            System.out.println(node.getNodeId()+" Choose one option:");
             System.out.println("(1) Print actual blockchain");
             System.out.println("(2) Wallet get balance");
             System.out.println("(3) Start new Auction");
@@ -66,7 +66,8 @@ public class Presentation{
             System.out.println("(7) Check Routing Table");
             System.out.println("(8) Print auctions messages");
             System.out.println("(9) Transactions Pool size");
-            System.out.println("(10) Exit");
+            System.out.println("(10) Send transaction");
+            System.out.println("(11) Exit");
             System.out.println();
             int answer = scanner.nextInt();
             switch (answer){
@@ -156,6 +157,10 @@ public class Presentation{
                     System.out.println(node.transactionPool);
                     break;
                 case 10:
+                    Transaction transaction = node.wallet.sendFunds(node.wallet.publicKey,20);
+                    node.broadcast(Utils.serialize(transaction),"0",DataType.TRANSACTION);
+                    break;
+                case 11:
                     flag=true;
                     service.stop();
                     break;
