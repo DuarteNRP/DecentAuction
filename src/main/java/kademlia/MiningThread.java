@@ -1,6 +1,6 @@
 package kademlia;
 
-public class MiningThread {
+public class MiningThread{
 
 }
 

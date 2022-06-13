@@ -3,9 +3,11 @@ package kademlia;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
+
 @Getter
 @Setter
-public class BinaryTreeNode {
+public class BinaryTreeNode implements Serializable {
     private BinaryTreeNode left;// bit 0
     private BinaryTreeNode right;//bit 1
     private Bucket kBucket;

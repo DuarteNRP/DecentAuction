@@ -3,9 +3,14 @@ package config;
 import java.io.*;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
+import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import crypto.*;
 import kademlia.TripleNode;
 import myBlockchain.*;
@@ -91,15 +96,28 @@ public class Utils {
         }
     }
     public static byte[] serialize(Object obj) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ObjectOutputStream os = new ObjectOutputStream(out);
-        os.writeObject(obj);
-        return out.toByteArray();
+        System.out.println("entrou");
+        Gson gson = new GsonBuilder().serializeNulls().create();
+        String jsonMessage = gson.toJson(obj);
+        return getBytesFromString(jsonMessage);
     }
     public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
-        ByteArrayInputStream in = new ByteArrayInputStream(data);
-        ObjectInputStream is = new ObjectInputStream(in);
-        return is.readObject();
+        ByteArrayInputStream bis = new ByteArrayInputStream(data);
+        ObjectInput in = null;
+        Object o=null;
+        try {
+            in = new ObjectInputStream(bis);
+            o = in.readObject();
+        } finally {
+            try {
+                if (in != null) {
+                    in.close();
+                }
+            } catch (IOException ex) {
+                // ignore close exception
+            }
+        }
+        return o;
     }
     public String mineId(String hash) {
         int nonce=0;
@@ -109,5 +127,11 @@ public class Utils {
             hash = crypto.hash(hash+Integer.toString(nonce));
         }
         return hash;
+    }
+    public static PrivateKey bytesToPrivateKey(byte[] privateKey) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(privateKey));
+    }
+    public static PublicKey bytesToPublicKey(byte[] publicKey) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKey));
     }
 }

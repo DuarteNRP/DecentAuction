@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Random;
 
 public class DecentAuction {
-    private static final Utils utils = new Utils();
+    /*private static final Utils utils = new Utils();
     private static final Crypto cripto = new Crypto();
     private static final Constraints constraints = new Constraints();
     public static ArrayList<ServerService> bootstrapNodes = new ArrayList<>();
@@ -48,9 +48,9 @@ public class DecentAuction {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-    }
+    }*/
 
-    public static void main(String[] args) throws Exception {
+    /*public static void main(String[] args) throws Exception {
         //test kademlia buckets
         DecentAuction test = new DecentAuction();
         test.initializeBootstrapNodes();
@@ -60,6 +60,9 @@ public class DecentAuction {
         test.setInitialBlockChain(node);
         test.broadcastInitialBlockChain();
         test.join(node);
+        node.askMessages(bootstrapNodes.get(0).getServiceTripleNode());
+        Thread.sleep(2000);
+        node.getChain().printBlockChain();
         Node node1 = serverService2.getServiceNode();
         TripleNode testTripleNode = node1.getNode();
         //test.join(node1);
@@ -253,5 +256,5 @@ public class DecentAuction {
         System.out.println("At the end the open auctions should be empty");
         System.out.println(n.getAuctionHouse().getOpenAuctions());
         System.out.println(targetNode.getAuctionHouse().getOpenAuctions());
-    }
+    }*/
 }

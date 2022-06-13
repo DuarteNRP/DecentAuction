@@ -2,17 +2,21 @@ package myBlockchain;
 
 import config.Utils;
 import crypto.Crypto;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
-
+@Getter
+@Setter
 public class Transaction implements Serializable {
     Crypto crypto = new Crypto();
+    private static final Utils utils = new Utils();
     public String transactionId;
-    public PublicKey sender;
-    public PublicKey receiver;
+    public byte[] sender;
+    public byte[] receiver;
     public float amount;
     //mudar para bytes
     public String signature;
@@ -23,28 +27,28 @@ public class Transaction implements Serializable {
     //count how many transactions have been made
     private static int numberTransation=0;
 
-    public Transaction(PublicKey from, PublicKey to, float amount,  ArrayList<TransactionInput> inputs) {
+    public Transaction(byte[] from, byte[] to, float amount,  ArrayList<TransactionInput> inputs) {
         this.sender = from;
         this.receiver = to;
         this.amount = amount;
         this.inputs = inputs;
     }
     // This Calculates the transaction hash (which will be used as its Id)
-    private String calulateHash() {
+    private String calculateHash() {
         numberTransation++; //increase the sequence to avoid 2 identical transactions having the same hash
         return crypto.hash(
-                Utils.getStringFromKey(sender) +
-                        Utils.getStringFromKey(receiver) +
+                Utils.getStringFromBytes(sender) +
+                        Utils.getStringFromBytes(receiver) +
                         Float.toString(amount) + numberTransation
         );
     }
     public void setSignature(PrivateKey privateKey) throws Exception {
-        String data = Utils.getStringFromKey(sender) + Utils.getStringFromKey(receiver) + Float.toString(amount);
+        String data = Utils.getStringFromKey(Utils.bytesToPublicKey(sender)) + Utils.getStringFromKey(Utils.bytesToPublicKey(receiver)) + Float.toString(amount);
         signature = crypto.sign(data,privateKey);
     }
     public boolean verifySignature() throws Exception {
-        String data = Utils.getStringFromKey(sender) + Utils.getStringFromKey(receiver) + Float.toString(amount);
-        return crypto.verify(data,signature,sender);
+        String data = Utils.getStringFromKey(Utils.bytesToPublicKey(sender)) + Utils.getStringFromKey(Utils.bytesToPublicKey(receiver)) + Float.toString(amount);
+        return crypto.verify(data,signature,Utils.bytesToPublicKey(sender));
     }
     public boolean processTransaction() throws Exception {
         if(verifySignature() == false) {
@@ -64,7 +68,7 @@ public class Transaction implements Serializable {
 
         //generate transaction outputs:
         float leftOver = getInputsValue() - amount; //get value of inputs then the left over change:
-        this.transactionId = calulateHash();
+        this.transactionId = calculateHash();
         outputs.add(new TransactionOutput( this.receiver,amount,transactionId)); //send value to receiver
         outputs.add(new TransactionOutput( this.sender, leftOver,transactionId)); //send the left over 'change' back to sender
 
@@ -99,5 +103,9 @@ public class Transaction implements Serializable {
             total += o.amount;
         }
         return total;
+    }
+    @Override
+    public String toString(){
+        return String.valueOf(amount);
     }
 }

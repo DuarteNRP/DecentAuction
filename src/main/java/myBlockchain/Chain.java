@@ -11,29 +11,30 @@ import config.*;
 import myBlockchain.Block;
 
 public class Chain implements Serializable {
-    public static final float minimumTransaction = 0.1f;
-    public static HashMap<String,TransactionOutput> UTXOs = new HashMap<String,TransactionOutput>(); //list of all unspent transactions.
-    public static ArrayList<Block> blockchain = new ArrayList<Block>();
-    private static final Constraints constraints = new Constraints();
-    private static final Utils utils = new Utils();
-    private static final Crypto crypto = new Crypto();
+    public final float minimumTransaction = 0.1f;
+    public HashMap<String,TransactionOutput> UTXOs = new HashMap<String,TransactionOutput>(); //list of all unspent transactions.
+    public ArrayList<Block> blockchain = new ArrayList<Block>();
+    private final Constraints constraints = new Constraints();
+    private final Utils utils = new Utils();
+    private final Crypto crypto = new Crypto();
     public static Wallet walletA;
     public static Wallet walletB;
     public static Transaction genesisTransaction;
-    public static long numberOfBlocks=0;
+    public long numberOfBlocks=0;
     public Chain(Transaction transaction) throws Exception {
         Block firstBlock= new Block("0");
         firstBlock.addTransaction(transaction);
-        this.append(new Block("0"));
+        this.append(firstBlock);
     }
     public void append(Block block) {
+        block.mineBlock();
         blockchain.add(block);
         numberOfBlocks+=1;
     }
     public Block getLastBlock() {
         return this.blockchain.get(this.blockchain.size()-1);
     }
-    public static void main(String[] args) throws Exception {
+    /*public static void main(String[] args) throws Exception {
         //Create wallets:
         walletA = new Wallet();
         walletB = new Wallet();
@@ -80,8 +81,8 @@ public class Chain implements Serializable {
         isValid();
 
 
-    }
-    public static Boolean isValid() throws Exception {
+    }*/
+    public Boolean isValid() throws Exception {
         Block currentBlock;
         Block previousBlock;
         String hashTarget = new String(new char[constraints.MINING_DIFFICULTY]).replace('\0', '0');
@@ -158,7 +159,7 @@ public class Chain implements Serializable {
         System.out.println("Blockchain is valid");
         return true;
     }
-    public static void addBlock(Block newBlock) {
+    public void addBlock(Block newBlock) {
         newBlock.mineBlock();
         blockchain.add(newBlock);
         numberOfBlocks+=1;
@@ -170,5 +171,13 @@ public class Chain implements Serializable {
         }
         return hash;
     }
-
+    public void printBlockChain(){
+        int i=1;
+        System.out.println("Blockchain:");
+        for(Block b : blockchain){
+            System.out.println("Block Number: "+i);
+            b.print();
+            i++;
+        }
+    }
 }

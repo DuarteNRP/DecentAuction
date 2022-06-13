@@ -1,6 +1,7 @@
 package grpcClient;
 
 import ServiceGRPC.*;
+import com.google.gson.GsonBuilder;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import config.Constraints;
@@ -14,19 +15,24 @@ import kademlia.Node;
 import kademlia.TripleNode;
 import lombok.Getter;
 import lombok.Setter;
+import myBlockchain.Block;
 import myBlockchain.Chain;
+import myBlockchain.Transaction;
 import pubsubAuction.Auction;
 import pubsubAuction.Service;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 @Setter
 @Getter
-public class ServerService{
+public class ServerService implements Serializable {
     private static final Logger logger = Logger.getLogger(ServerService.class.getName());
     private Server server;
     public String ip;
@@ -34,7 +40,7 @@ public class ServerService{
     private Node serviceNode;
     private TripleNode serviceTripleNode;
     private DistributedClient distributedClient;
-    public ServerService(String ip, int port) throws NoSuchAlgorithmException {
+    public ServerService(String ip, int port) throws NoSuchAlgorithmException, InvalidKeySpecException {
         this.ip=ip;
         this.port=port;
         this.distributedClient=new DistributedClient(this.ip,this.port);
@@ -90,10 +96,30 @@ public class ServerService{
         }
         @Override
         public void ping(Ping request, StreamObserver<Ping> responseObserver) {
-            responseObserver.onNext(request);
+            Ping ping = Ping.newBuilder()
+                    .setNodeId(this.node.getNode().getNodeId())
+                    .setIp(this.node.getNode().getIp())
+                    .setPort(this.node.getNode().getPort())
+                    .build();
+            responseObserver.onNext(ping);
             TripleNode tripleNode = new TripleNode(request.getIp(),request.getPort());
             tripleNode.setNodeId(request.getNodeId());
             this.node.tryToAddNode(tripleNode);
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void askMessage(Empty request, StreamObserver<Message> responseObserver) {
+            try {
+                Message message = Message.newBuilder()
+                    .setBlockchain(ByteString.copyFrom(utils.serialize(this.node.getChain())))
+                    .setService(ByteString.copyFrom(utils.serialize(this.node.getAuctionHouse())))
+                    .setPool(ByteString.copyFrom(utils.serialize(this.node.getTransactionPool())))
+                    .build();
+                responseObserver.onNext(message);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             responseObserver.onCompleted();
         }
 
@@ -173,34 +199,33 @@ public class ServerService{
             }
             this.node.broadcastId.add(request.getIdentifier());
             //System.out.println("Nó para guardar"+this.node.getNodeId());
-            try {
                 if(request.getDatatype()==DataType.BLOCK) {
-                    this.node.handlerNewBlock();
-                    myBlockchain.Block b = (myBlockchain.Block) utils.deserialize(request.getData().toByteArray());
+                    this.node.handlerNewBlock();;
+                    Block b = new GsonBuilder().create().fromJson(utils.getStringFromBytes(request.getData().toByteArray()),Block.class);
                     this.node.setBlock(b);
                     this.node.getChain().append(b);
-                    //System.out.println("Guardou bloco em:" +this.node.getNodeId());
+                    System.out.println("Block received");
                 }
                 else if(request.getDatatype()==DataType.TRANSACTION) {
-                    myBlockchain.Transaction t = (myBlockchain.Transaction) utils.deserialize(request.getData().toByteArray());
+                    Transaction t = new GsonBuilder().create().fromJson(utils.getStringFromBytes(request.getData().toByteArray()),Transaction.class);
                     this.node.getTransactionPool().add(t);
-                    //System.out.println("Guardou transaçao em:" +this.node.getNodeId()+" , identifier: "+request.getIdentifier());
-                    if(this.node.transactionPool.size()>constraints.MAX_TRANSACTIONS_PER_BLOCK){
-                        this.node.handlerNewBlock();
+                    System.out.println("Transaction received");
+                    if(this.node.transactionPool.size()>=constraints.MAX_TRANSACTIONS_PER_BLOCK){
+                        this.node.handlerNewTransaction();
                     }
                 }
                 else if(request.getDatatype()==DataType.BLOCKCHAIN) {
-                    Chain c = (myBlockchain.Chain) utils.deserialize(request.getData().toByteArray());
+                    Chain c = new GsonBuilder().create().fromJson(utils.getStringFromBytes(request.getData().toByteArray()),Chain.class);
                     if(this.node.getChain()==null || this.node.getChain().blockchain.size()<c.blockchain.size()) {
                         this.node.setChain(c);
-                        //System.out.println("Guardou blockchain em:" + this.node.getNodeId());
+                        System.out.println("blockchain received");
                         this.node.wallet.setBlockchain(c);
                     }
                 }
                 else if(request.getDatatype()==DataType.AUCTION){
                     //System.out.println("Guardou auction em:" + this.node.getNodeId());
-                    Service service = (Service) utils.deserialize(request.getData().toByteArray());
-                    this.node.setAuctionHouse(service);
+                    Service s = new GsonBuilder().create().fromJson(utils.getStringFromBytes(request.getData().toByteArray()),Service.class);
+                    this.node.setAuctionHouse(s);
                 }
                 Context ctx = Context.current().fork();
                 // Set ctx as the current context within the Runnable
@@ -213,10 +238,25 @@ public class ServerService{
                 });
                 responseObserver.onNext(Empty.newBuilder().build());
                 responseObserver.onCompleted();
+        }
+
+        @Override
+        public void getWallet(Ping request, StreamObserver<Wallet> responseObserver) {
+            try {
+                TripleNode tripleNode = new TripleNode(request.getNodeId(), request.getIp(), request.getPort());
+                this.node.tryToAddNode(tripleNode);
+                Ping ping = Ping.newBuilder()
+                        .setNodeId(this.node.getNode().getNodeId())
+                        .setIp(this.node.getNode().getIp())
+                        .setPort(this.node.getNode().getPort())
+                        .build();
+                //System.out.println("Wallet do lado do servidor:"+ Arrays.toString(this.node.wallet.publicKey));
+                //System.out.println(ByteString.copyFrom(utils.serialize(this.node.getWallet())));
+                Wallet wallet = Wallet.newBuilder().setWallet(ByteString.copyFrom(utils.serialize(this.node.getWallet()))).setPing(ping).build();
+                responseObserver.onNext(wallet);
+                responseObserver.onCompleted();
             } catch (IOException e) {
-                System.out.println(e);
-            } catch (ClassNotFoundException e) {
-                System.out.println(e);
+                throw new RuntimeException(e);
             }
         }
     }

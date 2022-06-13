@@ -11,6 +11,8 @@ service P2PService {
     rpc findValue(Ping) returns (stream Found) {}
     rpc store(Data) returns (Empty) {}
     rpc broadcast(BlockData) returns (Empty){}
+    rpc askMessage(Empty) returns (Message){}
+    rpc getWallet(Ping) returns (Wallet){}
 }
 //provavelmente vão mudar os atributos de cada tipo, passar por exemplo para bytes
 message Empty{
@@ -42,10 +44,23 @@ enum DataType{
     BLOCK = 1;
     BLOCKCHAIN = 2;
     AUCTION = 3;
+    Pool =4;
+}
+message MDataType{
+    DataType datatype=1;
 }
 message BlockData{
     bytes data = 1;
     DataType datatype =2;
     string identifier =3;
     Ping ping = 4;
+}
+message Message{
+    bytes blockchain = 1;
+    bytes pool = 2;
+    bytes service = 3;
+}
+message Wallet{
+    bytes wallet = 1;
+    Ping ping =2;
 }

@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -47,7 +48,7 @@ public class Node implements Serializable {
 
     //TODO tem de ser o mesmo na rede, aka DHT
     public Service auctionHouse = new Service();
-    public Node(TripleNode node) throws NoSuchAlgorithmException {
+    public Node(TripleNode node) throws NoSuchAlgorithmException, InvalidKeySpecException {
         transactionPool= new CopyOnWriteArrayList<>();
         this.mining =generator.nextInt(2);
         this.node=node;
@@ -303,9 +304,7 @@ public class Node implements Serializable {
         //TODO fix name
         String topic = crypto.hash(String.valueOf(new Date().getTime()));
         Auction auction = new Auction(this, items);
-        System.out.println("node: "+auctionHouse.getOpenAuctions().size());
         auctionHouse.setAuction(topic, auction);
-        System.out.println("node: "+auctionHouse.getOpenAuctions().get(0));
         Message message = new Message(topic, auction);
 
         pub.publish(message, auctionHouse);
@@ -322,7 +321,6 @@ public class Node implements Serializable {
         sub.subscribe(topic, auctionHouse);
         Auction auction = auctionHouse.getAuction(topic);
         auction.bid(this, item, value);
-        System.out.println("this:" +this.wallet.getBalance());
         auctionHouse.setAuction(topic, auction);
         pub.publish(message, auctionHouse);
         auctionHouse.printAll();
@@ -337,12 +335,16 @@ public class Node implements Serializable {
         Map<String, Bid> winners = auction.finish();
         for(String item : winners.keySet()){
             Bid bid = winners.get(item);
-            String result = bid.getBidder()+" won item "+bid.getItem();
+            String result = bid.getBidder()+" won item "+bid.getItem()+" bidding "+bid.getBid();
             Message message = new Message(topic, result);
             pub.publish(message, auctionHouse);
             String hash=crypto.hash(String.valueOf(new Date().getTime())+result);
-            System.out.println("bid.getBid:"+bid.getWallet().getBlockchain());
-            this.broadcast(utils.serialize(bid.getWallet().sendFunds(
+            TripleNode tripleNode = new TripleNode(bid.getBidder(),bid.getIp(),bid.getPort());
+
+            Wallet wallet = this.distributedClient.askWallet(tripleNode);
+            //System.out.println(wallet.getBalance());
+            //System.out.println(Utils.bytesToPublicKey(wallet.publicKey));
+            this.broadcast(utils.serialize(wallet.sendFunds(
                     this.wallet.publicKey, bid.getBid())),hash,DataType.TRANSACTION);
             Thread.sleep(2000);
         }
@@ -354,8 +356,8 @@ public class Node implements Serializable {
     }
     public void retrieveSubscribedMessages(){auctionHouse.retrieveSubscribedMessages(this);}
 
-    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(constraints.K);
     public void broadcast(byte[] arr, String identifier, DataType dataType) throws IOException {
+        System.out.println("entrou broadcast");
         ArrayList<TripleNode> allNodes= allNodes(this.routingtable.getRootBinaryTreeNode());
         for(int i=0;i<allNodes.size();i++) {
             distributedClient.sendData(arr, allNodes.get(i), dataType, identifier);
@@ -383,8 +385,12 @@ public class Node implements Serializable {
         miningThread.start();
     }
     public void handlerNewBlock(){
-        if(!miningThread.check) {
+        if(miningThread!= null){
             miningThread.check=false;
+            miningThread.interrupt();
         }
+    }
+    public void askMessages(TripleNode tripleNode) throws IOException {
+        this.distributedClient.askMessage(tripleNode);
     }
 }

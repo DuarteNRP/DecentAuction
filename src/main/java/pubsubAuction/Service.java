@@ -57,9 +57,14 @@ public class Service implements Serializable{
 						topicMap.get(node.getNodeId());
 
 		for(Message message : messages)
-			for(String topic : topics)
-				if(message.getTopic().equalsIgnoreCase(topic))
-					subscribedMessages.add(message);
+			for(String topic : topics) {
+				if (message.getTopic().equalsIgnoreCase(topic)) {
+					if (!subscriber.getIdentifiers().contains(message.getIdentifier())){
+						subscribedMessages.add(message);
+						subscriber.getIdentifiers().add(message.getIdentifier());
+					}
+				}
+			}
 
 		subscriber.setMessages(subscribedMessages);
 	}

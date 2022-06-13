@@ -13,7 +13,8 @@ import java.util.*;
 public class Bid implements Serializable{
 
     private String bidder;
-    private Wallet wallet;
+    private String Ip;
+    private int port;
     private Item item;
     private float bid;
 
@@ -25,11 +26,12 @@ public class Bid implements Serializable{
 
     Bid(int bid){this.bid = bid;}
 
-    Bid(Node bidder, Item item, float bid, Wallet wallet){
+    Bid(Node bidder, Item item, float bid){
         this.bidder = bidder.getNodeId();
         this.item = item;
         this.bid = bid;
-        this.wallet= wallet;
+        this.Ip=bidder.getNode().getIp();
+        this.port=bidder.getNode().getPort();
     }
 
     @Override

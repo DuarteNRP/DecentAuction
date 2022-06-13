@@ -9,12 +9,11 @@ import myBlockchain.Chain;
 import myBlockchain.Transaction;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class Mining extends Thread {
+public class Mining extends Thread implements Serializable {
     private static final Constraints constraints = new Constraints();
-    private static final Utils utils = new Utils();
-    private static final Crypto crypto = new Crypto();
     public Chain blockchain;
     public Node n;
     public CopyOnWriteArrayList<Transaction> transactions;
@@ -34,7 +33,8 @@ public class Mining extends Thread {
                 newBlock.addTransaction(this.transactions.get(i));
                 newBlock.mineBlock();
                 if(check) {
-                    this.n.broadcast(utils.serialize(newBlock), newBlock.actualHash, DataType.BLOCK);
+                    System.out.println("node: "+node.getNodeId());
+                    this.n.broadcast(Utils.serialize(newBlock), newBlock.actualHash, DataType.BLOCK);
                     for(Transaction t : newBlock.getTransactions()){
                         transactions.remove(t);
                     }

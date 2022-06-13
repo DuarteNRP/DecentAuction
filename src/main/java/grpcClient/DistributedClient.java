@@ -1,6 +1,7 @@
 package grpcClient;
 
 import ServiceGRPC.*;
+import com.google.gson.GsonBuilder;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import config.Constraints;
@@ -15,12 +16,18 @@ import kademlia.TripleNode;
 import lombok.Getter;
 import lombok.Setter;
 import myBlockchain.Block;
+import myBlockchain.Chain;
+import myBlockchain.Transaction;
+import pubsubAuction.Service;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 /*
@@ -29,7 +36,7 @@ e não preciso de mandar o ip do nó que quero comunicar ahaha troll
 */
 @Getter
 @Setter
-public class DistributedClient {
+public class DistributedClient implements Serializable {
     private static final Crypto crypto = new Crypto();
     private static final Utils utils = new Utils();
     private static final Constraints constraints = new Constraints();
@@ -53,7 +60,6 @@ public class DistributedClient {
                     .build();
 
             cachedChannel.put(node.getNodeId(), channel);
-
             return P2PServiceGrpc.newStub(channel);
         } else if (!channel.isTerminated() && !channel.isShutdown()) {
             return P2PServiceGrpc.newStub(channel);
@@ -62,12 +68,21 @@ public class DistributedClient {
         return null;
     }
     public P2PServiceGrpc.P2PServiceBlockingStub newBlockingStub(TripleNode node){
-        ManagedChannel channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
-                // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
-                // needing certificates.
-                .usePlaintext()
-                .build();
-        return P2PServiceGrpc.newBlockingStub(channel);
+        ManagedChannel channel = cachedChannel.get(node.getNodeId());
+        if (channel == null || channel.isShutdown() || channel.isTerminated()) {
+            channel= ManagedChannelBuilder.forTarget(node.getIp()+":"+node.getPort())
+                    // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
+                    // needing certificates.
+                    .usePlaintext()
+                    .build();
+
+            cachedChannel.put(node.getNodeId(), channel);
+            return P2PServiceGrpc.newBlockingStub(channel);
+        } else if (!channel.isTerminated() && !channel.isShutdown()) {
+            return P2PServiceGrpc.newBlockingStub(channel);
+        }
+        System.out.println("Failed to connect to the IP: " + node.getNodeId());
+        return null;
     }
     public void closeConnection(ManagedChannel channel) throws InterruptedException {
         channel.shutdownNow();
@@ -79,15 +94,18 @@ public class DistributedClient {
     }
     //use Node ID to ping node
     public void sendPing(TripleNode node) throws InterruptedException, IOException {
+        Node n=this.node;
         P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(node);
         StreamObserver<Ping> responseObserver = new StreamObserver<Ping>(){
             @Override
             public void onNext(Ping value){
                 System.out.println("ping received");
+                TripleNode newNode = new TripleNode(value.getNodeId(), value.getIp(), value.getPort());
+                n.tryToAddNode(newNode);
             }
             @Override
             public void onError(Throwable t) {
-                //System.out.println("No connection, removed node");
+                System.out.println("No connection, removed node");
             }
             @Override
             public void onCompleted() {
@@ -187,7 +205,7 @@ public class DistributedClient {
             }
 
             @Override
-            public void onError(Throwable t) {;
+            public void onError(Throwable t) {
             }
 
             @Override
@@ -240,5 +258,52 @@ public class DistributedClient {
            System.out.println("entrou aqui!!!");
             logger.info("RPC failed: {0}"+ e.getStatus()+"!");
        }
+    }
+    public void askMessage(TripleNode tripleNode) throws IOException {
+        Node n=this.node;
+        P2PServiceGrpc.P2PServiceStub asyncStub = newAsyncStub(tripleNode);
+        StreamObserver<Message> responseObserver = new StreamObserver<Message>(){
+            @Override
+            public void onNext(Message value){
+                Service s = new GsonBuilder().create().fromJson(utils.getStringFromBytes(value.getService().toByteArray()),Service.class);
+                n.setAuctionHouse(s);
+                Chain c = new GsonBuilder().create().fromJson(utils.getStringFromBytes(value.getBlockchain().toByteArray()),Chain.class);
+                n.setChain(c);
+                n.wallet.setBlockchain(c);
+                CopyOnWriteArrayList<Transaction> pool = new GsonBuilder().create().fromJson(utils.getStringFromBytes(value.getPool().toByteArray()),CopyOnWriteArrayList.class);
+                n.setTransactionPool(pool);
+            }
+            @Override
+            public void onError(Throwable t) {
+                    throw new RuntimeException(t);
+            }
+            @Override
+            public void onCompleted() {
+            }
+        };
+        try {
+            asyncStub.askMessage(Empty.newBuilder().build(),responseObserver);
+        } catch(StatusRuntimeException e){
+            logger.info("RPC failed: {0}"+ e.getStatus()+"!");
+        }
+    }
+    public myBlockchain.Wallet askWallet(TripleNode node) throws IOException {
+        P2PServiceGrpc.P2PServiceBlockingStub blockingStubStub = newBlockingStub(node);
+        try {
+            Ping ping = Ping.newBuilder()
+                    .setNodeId(this.node.getNode().getNodeId())
+                    .setIp(this.node.getNode().getIp())
+                    .setPort(this.node.getNode().getPort())
+                    .build();
+            Wallet value = blockingStubStub.getWallet(ping);
+            TripleNode newNode = new TripleNode(value.getPing().getNodeId(), value.getPing().getIp(), value.getPing().getPort());
+            this.node.tryToAddNode(newNode);
+            myBlockchain.Wallet wallet = new GsonBuilder().create().fromJson(utils.getStringFromBytes(value.getWallet().toByteArray()), myBlockchain.Wallet.class);
+            //System.out.println("Wallet do lado do client:"+ Arrays.toString(wallet.publicKey));
+            //System.out.println(value.getWallet());
+            return wallet;
+        } catch(StatusRuntimeException e){
+            return null;
+        }
     }
 }

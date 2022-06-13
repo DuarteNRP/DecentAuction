@@ -1,0 +1,12 @@
+Coisas alteradas:
+
+Ficheiro novo "Apresentation" para demonstrar resultados dos leilões;
+Funções para printar os blocos e blockchain;
+build.gradle para correr o main e os ficheiros jar todos
+ping no server alterei a resposta (adicionar o ping inicial onNext(ping))
+Contrutor da blockchain tinha uma linha a mais que estava a criar um novo block em vez de adicionar o mesmo
+Proto adicionado rpc askMessage para quando inicializar com o bootstrap pedir, blockchain,serviço,e pool
+Mudamos as funções de serialização e deserialização para gson porque estava a dar erro e descobrimos que não aceita atributos estáticos e não serializaveis
+Modificações nos prints das messagens nas auctions para um melhor debug
+Adicionada a mensagem para pedir a wallet para criar a transação à auction com blocking stub
+Alteramos funções do mining

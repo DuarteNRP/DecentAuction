@@ -1,15 +1,19 @@
 package pubsubAuction;
 
 import kademlia.Node;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.*;
 import java.util.*;
-
+@Getter
+@Setter
 public class Subscriber implements Serializable{
 
     private String nodeId;
 
     private Set<Message> messages = new LinkedHashSet<>();
+    private Set<String> identifiers = new LinkedHashSet<>();
 
     public Subscriber(Node node){this.nodeId = node.getNodeId();}
 

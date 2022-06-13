@@ -26,7 +26,7 @@ public class Auction implements Serializable{
 
     public void bid(Node bidder, Item item, float bid){
 	//TODO check bid amount, and if everythign else exists
-	bids.add(new Bid(bidder, item, bid,bidder.wallet));
+	bids.add(new Bid(bidder, item, bid));
     }
 
     public Map<String, Bid> finish(){

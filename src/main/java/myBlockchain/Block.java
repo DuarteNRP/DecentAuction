@@ -77,4 +77,10 @@ public class Block implements Serializable {
         }
         return count;
     }
+    public void print(){
+        System.out.println("Previous hash: "+ previousHash);
+        System.out.println("Actual hash: "+ actualHash);
+        System.out.println("Number of Transactions: "+ transactions.size());
+        System.out.println("Transactions Amount: "+ this.getTransactionsAmount());
+    }
 }

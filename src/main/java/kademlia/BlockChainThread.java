@@ -2,11 +2,12 @@ package kademlia;
 
 import myBlockchain.Chain;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class BlockChainThread implements Runnable{
+public class BlockChainThread implements Runnable, Serializable {
     public CopyOnWriteArrayList<String> broadcastId;
     Thread t;
     public BlockChainThread(String name,CopyOnWriteArrayList<String> broadcastId){
